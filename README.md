@@ -1,58 +1,75 @@
-# ⚽ Statistical Match Predictor
+# ⚽ World Cup 2026 · Group H — Predictor & Live Match Simulator
 
-A self-contained, dependency-free sports-betting model and visual dashboard for:
+A **single, self-contained HTML file** — no libraries, no build step, no internet.
+Just **double-click `index.html`** and it runs in any browser.
 
-- 🇺🇾 **Uruguay vs Spain** 🇪🇸
-- 🇸🇦 **Saudi Arabia vs Cape Verde** 🇨🇻
+It models the two simultaneous, decisive **Group H Matchday-3** fixtures of the
+2026 FIFA World Cup (26 June 2026):
 
-Just open **`index.html`** in any browser — no build step, no internet, no libraries.
+- 🇺🇾 **Uruguay vs Spain** 🇪🇸 — Estadio Akron, Guadalajara
+- 🇨🇻 **Cape Verde vs Saudi Arabia** 🇸🇦 — NRG Stadium, Houston
 
 ![dashboard](docs/preview.png)
 
-## What it does
+## ⭐ The headline feature: a live match simulator
 
-For each fixture the model produces:
+Each match has an animated, top-down **pitch** where the game plays out
+minute-by-minute, driven by the model:
 
-| Output | Method |
-| --- | --- |
-| **Expected goals (xG)** | Attack/defence strength × league baseline |
-| **1X2 win/draw/win probabilities** | Bivariate Poisson + Elo tilt + form |
-| **Scoreline probability map** | Full 0-0 → 8-8 Poisson matrix (heatmap) |
-| **Most likely scorelines** | Top-6 from the matrix |
-| **Side markets** | BTTS, Over/Under 2.5, clean-sheet edge |
-| **Fair odds & value detector** | Probabilities → decimal odds vs a book line |
-| **Confidence check** | 20,000-run Monte-Carlo simulation |
-| **Context** | Team radars, recent form, key players, head-to-head history |
+- ▶ **Kick off** samples a fresh scoreline from the model's probabilities and
+  plays it out live, with **1× / 2× / 4×** speed and **⏭ Skip to result**
+- Live **scoreboard + clock**, moving **ball** and both teams in **4-3-3**
+- **Goal celebrations** — screen flash, "GOAL!" burst and confetti
+- Live **stats** (possession, shots, on-target, xG, corners) that build in real time
+- A scrolling **commentary feed** using real squad names
+
+![simulator](docs/simulator.png)
+
+## Built on real data (June 2026)
+
+| Team | FIFA rank | Elo | Group H |
+| --- | --- | --- | --- |
+| 🇪🇸 Spain | 3 | 2129 | 4 pts — beat Saudi 4-0, drew Cape Verde 0-0 |
+| 🇺🇾 Uruguay | 17 | 1890 | 2 pts — drew Saudi 1-1, drew Cape Verde 2-2 |
+| 🇨🇻 Cape Verde | 63 | 1625 | 2 pts — unbeaten, drew Spain & Uruguay |
+| 🇸🇦 Saudi Arabia | 59 | 1593 | 1 pt — must win |
+
+The model is **calibrated to the real market**: it reproduces the Opta
+supercomputer's Uruguay v Spain line (≈ Spain 67% / draw 21% / Uruguay 12%,
+vs Opta's 62 / 22 / 16) and the genuine coin-flip with a slight Cape Verde
+lean for the second game.
+
+## What each match shows
+
+- **Model verdict** + expected goals (xG) + most-likely scoreline
+- **1X2 probabilities** and fair decimal odds
+- **Scoreline probability heatmap** (every score 0-0 → 8-8)
+- **Team-strength radar**, **Poisson goal-distribution curves**
+- **Side markets** (BTTS, Over/Under 2.5) and a **value detector**
+- **Head-to-head history** and current **form / key players**
+
+Plus a **Group H standings** table with qualification scenarios.
 
 ## How the model works
 
-1. **Goal expectancy** — each side's attack and defence ratings combine with the
-   league-average goals baseline to produce expected goals; strong defences
-   suppress the opponent's xG.
-2. **Poisson scorelines** — the xG values drive a Poisson distribution to give
-   the probability of every scoreline, aggregated into match markets.
-3. **Elo tilt** — World-Football Elo ratings nudge the goal means so a large
-   rating gap is reflected even when raw scoring profiles look alike.
-4. **Form momentum** — recent W/D/L results apply a small multiplier.
-5. **Monte-Carlo** — 20,000 simulated matches stress-test the analytic result;
-   the two are averaged for a more robust final probability.
-6. **Fair odds & value** — probabilities invert to fair decimal odds and are
-   compared against a synthesised bookmaker price to flag where an edge exists.
+1. **Goal expectancy** — real attack/defence strengths × tournament baseline → xG
+2. **Poisson scorelines** — xG → probability of every scoreline → 1X2/BTTS/totals
+3. **Elo tilt** — World-Football Elo nudges the goal means toward the stronger side
+4. **Monte-Carlo** — 20,000 simulated matches; analytic + simulated are averaged
+5. **Fair odds & value** — probabilities invert to odds, compared to a book line
+6. **Match simulator** — replays a sampled scoreline as a live, animated game
 
-## Project structure
+## Files
 
 ```
-index.html        # page shell + methodology
-css/styles.css    # dark glassy dashboard theme
-js/data.js        # team stats, ratings & head-to-head history
-js/model.js       # Poisson + Elo + Monte-Carlo prediction engine
-js/charts.js      # hand-rendered SVG charts (heatmap, radar, curves)
-js/app.js         # builds the UI from model output
+index.html        # everything — markup, styles, data, model, charts, simulator
+docs/             # preview screenshots
 ```
 
 ## Disclaimer
 
-⚠️ **For entertainment and educational purposes only.** All figures are
-research-based approximations, not live data feeds. This is a statistical model,
-not betting advice — sporting outcomes are inherently uncertain. If you choose to
-gamble, do so responsibly. **18+ · BeGambleAware.org**
+⚠️ **For entertainment and educational purposes only.** Figures are
+real-world-based estimates compiled for modelling, not a live feed, and the
+simulator is a probabilistic illustration — not a guaranteed outcome. This is a
+statistical model, not betting advice. If you choose to gamble, do so
+responsibly. **18+ · BeGambleAware.org**
