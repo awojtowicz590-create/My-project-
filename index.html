@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Match Predictor · Uruguay v Spain · Saudi Arabia v Cape Verde</title>
+  <meta name="description" content="A statistical sports-betting model with Poisson goal modelling, Elo ratings and Monte-Carlo simulation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+</head>
+<body>
+  <header class="hero">
+    <span class="eyebrow">Statistical Match Predictor</span>
+    <h1>Uruguay v Spain<br />Saudi Arabia v Cape Verde</h1>
+    <p>
+      A data-driven betting model blending a bivariate <b>Poisson goals engine</b>,
+      <b>Elo ratings</b>, recent form and a <b>20,000-run Monte-Carlo simulation</b> —
+      with full head-to-head history, team radars and value detection.
+    </p>
+    <div class="pills">
+      <span>⚽ Poisson xG model</span>
+      <span>📊 Elo expectancy</span>
+      <span>🎲 Monte-Carlo</span>
+      <span>📈 Value detector</span>
+      <span>🕸️ Team radars</span>
+    </div>
+  </header>
+
+  <main id="matches"><!-- match cards injected by app.js --></main>
+
+  <section class="methodology">
+    <h2>How the model works</h2>
+    <div class="method-grid">
+      <div>
+        <h4>1 · Goal expectancy (xG)</h4>
+        <p>Each team's attack and defence strength is combined with the league
+        baseline to produce expected goals. Defensive quality reduces the
+        opponent's xG.</p>
+      </div>
+      <div>
+        <h4>2 · Poisson scorelines</h4>
+        <p>Expected goals feed a Poisson distribution to compute the probability
+        of every scoreline from 0-0 up to 8-8, then aggregated into 1X2, BTTS
+        and totals markets.</p>
+      </div>
+      <div>
+        <h4>3 · Elo tilt</h4>
+        <p>World-Football Elo ratings nudge the goal means so a large rating gap
+        is reflected even when raw scoring profiles look similar.</p>
+      </div>
+      <div>
+        <h4>4 · Monte-Carlo</h4>
+        <p>20,000 simulated matches stress-test the analytic result; the two are
+        averaged for a more robust final probability.</p>
+      </div>
+      <div>
+        <h4>5 · Fair odds &amp; value</h4>
+        <p>Probabilities invert to fair decimal odds, compared against a
+        synthesised bookmaker line to flag where an edge would exist.</p>
+      </div>
+      <div>
+        <h4>6 · Form &amp; history</h4>
+        <p>Recent W/D/L momentum and head-to-head records contextualise the
+        numbers with the human side of the matchup.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="disclaimer">
+    ⚠️ <b>For entertainment &amp; educational purposes only.</b> Figures are
+    research-based approximations, not live data. This is a statistical model,
+    not betting advice — outcomes are uncertain. If you choose to gamble, do so
+    responsibly. 18+ · BeGambleAware.
+  </div>
+
+  <footer>
+    Built as a self-contained, dependency-free dashboard · open <code>index.html</code> in any browser.
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/model.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
