@@ -25,6 +25,29 @@ minute-by-minute, driven by the model:
 
 ![simulator](docs/simulator.png)
 
+## 🔴 Live data wiring
+
+The dashboard loads instantly from a bundled real-world snapshot, then tries to
+**enrich itself with live data** in your browser — no server needed:
+
+- **Live stats / form / recent results** → [TheSportsDB](https://www.thesportsdb.com)
+  (keyless, CORS-enabled). On load it resolves each national team, pulls their
+  last results, and updates the form pills + recent-results chips, tagging them
+  **LIVE**.
+- **Live bookmaker odds** → [The Odds API](https://the-odds-api.com) (optional).
+  Click **🔑 Odds API key**, paste a free key (stored only in your browser), and
+  the Value Detector compares the model against **real averaged H2H odds** instead
+  of a synthesised line.
+
+A status badge shows **🟢 LIVE data** / **🟡 Connecting…** / **⚪ Offline snapshot**,
+with an **⟳ Refresh** button and a "last updated" time. If any fetch fails
+(offline, rate-limited, or blocked), it silently falls back to the snapshot — so
+the file always works, even with no internet.
+
+> Note: opening straight from `file://` works because both APIs send permissive
+> CORS headers. If your browser is strict about local files, serve the folder
+> with any static server (e.g. `python3 -m http.server`) and open `localhost`.
+
 ## Built on real data (June 2026)
 
 | Team | FIFA rank | Elo | Group H |

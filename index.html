@@ -42,6 +42,19 @@ a{color:var(--accent)}
 @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,90,90,.6)}50%{opacity:.5;box-shadow:0 0 0 7px rgba(255,90,90,0)}}
 .pills{margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .pills span{background:var(--panel);border:1px solid var(--bd);padding:7px 14px;border-radius:999px;font-size:13px}
+.live-status{margin-top:18px;display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}
+.ls-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:700;border:1px solid var(--bd)}
+.ls-badge.snap{background:rgba(133,149,171,.12);color:#aab6c6}
+.ls-badge.conn{background:rgba(246,203,70,.12);color:#f6cb46;border-color:rgba(246,203,70,.35)}
+.ls-badge.live{background:rgba(54,211,153,.14);color:#7bf0c4;border-color:rgba(54,211,153,.4)}
+.ls-badge.live .dot{background:#36d399}
+.ls-time{font-size:12px;color:var(--muted)}
+.recent-live{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.rl{font-size:11px;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--bd);color:var(--muted)}
+.rl b{color:var(--txt)}
+.src-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:middle}
+.src-live{background:rgba(54,211,153,.16);color:#7bf0c4}
+.src-model{background:rgba(133,149,171,.14);color:#aab6c6}
 
 /* ---- Standings ---- */
 .section-title{font-size:22px;font-weight:800;margin:42px 0 16px;display:flex;align-items:center;gap:10px}
@@ -244,6 +257,12 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 20px 50p
     <span>⚽ Real stats</span><span>📊 Poisson + Elo</span><span>🎲 Monte-Carlo</span>
     <span>🕹️ Live match sim</span><span>📈 Value detector</span>
   </div>
+  <div class="live-status">
+    <span class="ls-badge snap" data-ls><span class="dot" style="background:#8595ab"></span>Offline snapshot</span>
+    <button class="btn" data-refresh>⟳ Refresh live data</button>
+    <button class="btn" data-oddscfg>🔑 Odds API key</button>
+    <span class="ls-time" data-lstime></span>
+  </div>
 </header>
 
 <div class="wrap">
@@ -383,8 +402,9 @@ function buildModel(hk,ak){
     fairOdds:{home:1/probs.home,draw:1/probs.draw,away:1/probs.away},
     elo:{homeExp:eloExp(home.elo,away.elo)},mc};
 }
-function deriveMarket(m){const overround=1.06,out={};["home","draw","away"].forEach((k,i)=>{
-  const fair=m.fairOdds[k],wobble=[0.97,1.05,1.0][i],book=(fair/overround)*wobble;
+function deriveMarket(m,realOdds){const overround=1.06,out={live:!!realOdds};["home","draw","away"].forEach((k,i)=>{
+  const fair=m.fairOdds[k];
+  const book=realOdds&&realOdds[k]?realOdds[k]:(fair/overround)*[0.97,1.05,1.0][i];
   const mp=m.probs[k],bi=1/book,edge=mp-bi;out[k]={fairOdds:fair,bookOdds:book,modelProb:mp,bookImplied:bi,edge,value:edge>0.02};});return out;}
 
 /* =========================================================================
@@ -723,11 +743,12 @@ function h2hBlock(fx,m){const h=fx.h2h,pc=n=>h.played?(n/h.played*100).toFixed(0
     <table class="h2h-table"><tbody>${rows}</tbody></table>`;}
 function formBlock(t){const pills=t.form.map(r=>`<span class="form-pill f-${r}">${r}</span>`).join("");
   const pl=t.keyPlayers.map(p=>`<li><b>${p.n}</b> <span class="role">${p.r}</span><small>${p.x}</small></li>`).join("");
-  return`<div class="form-block"><div class="form-head"><span>${t.flag} ${t.name}</span><div class="form-pills">${pills}</div></div>
-    <ul class="players">${pl}</ul><div class="honours">🏆 ${t.honours}</div></div>`;}
+  const recent=t.recent&&t.recent.length?`<div class="recent-live">${t.recent.map(r=>`<span class="rl">${r.date} ${r.home?"vs":"@"} <b>${r.opp}</b> ${r.score}</span>`).join("")}</div>`:"";
+  return`<div class="form-block"><div class="form-head"><span>${t.flag} ${t.name}${t.recent?'<span class="src-tag src-live">LIVE</span>':""}</span><div class="form-pills">${pills}</div></div>
+    ${recent}<ul class="players">${pl}</ul><div class="honours">🏆 ${t.honours}</div></div>`;}
 
 function buildMatchCard(fx){
-  const m=buildModel(fx.home,fx.away),market=deriveMarket(m);
+  const m=buildModel(fx.home,fx.away),market=deriveMarket(m,LIVE_ODDS[fx.id]);
   const fav=m.probs.home>m.probs.away&&m.probs.home>m.probs.draw?m.home:m.probs.away>m.probs.draw?m.away:null;
   const card=document.createElement("section");card.className="match-card";
   card.innerHTML=`
@@ -762,9 +783,9 @@ function buildMatchCard(fx){
       <div class="panel"><h3>Side Markets</h3>
         ${mkt("Both teams to score",m.markets.btts)}${mkt("Over 2.5 goals",m.markets.over25)}${mkt("Under 2.5 goals",m.markets.under25)}
         <div class="topscores">${m.topScores.map(s=>`<span class="chip"><b>${s.label}</b> ${(s.prob*100).toFixed(1)}%</span>`).join("")}</div></div>
-      <div class="panel"><h3>Value Detector <small class="muted">model vs simulated book</small></h3>
+      <div class="panel"><h3>Value Detector <small class="muted">model vs ${market.live?"live bookmaker":"simulated book"}</small>${market.live?'<span class="src-tag src-live">LIVE ODDS</span>':'<span class="src-tag src-model">MODEL</span>'}</h3>
         ${val(m.home.code+" win",market.home)}${val("Draw",market.draw)}${val(m.away.code+" win",market.away)}
-        <p class="disclaimer-mini">Book prices synthesised for demonstration.</p></div>
+        <p class="disclaimer-mini">${market.live?"Live H2H odds (avg of bookmakers) via The Odds API.":"Add an Odds API key above to compare against real bookmaker prices."}</p></div>
       <div class="panel"><h3>Head-to-Head History</h3>${h2hBlock(fx,m)}</div>
       <div class="panel"><h3>Form &amp; Key Players</h3>${formBlock(m.home)}${formBlock(m.away)}</div>
     </div>`;
@@ -783,11 +804,130 @@ function animateCounters(){document.querySelectorAll("[data-count]").forEach(n=>
   function step(now){const t=Math.min(1,(now-st)/dur),e=1-Math.pow(1-t,3),v=tg*e;
     n.textContent=dec?v.toFixed(2):Math.round(v).toLocaleString();if(t<1)requestAnimationFrame(step);}requestAnimationFrame(step);});}
 
-document.addEventListener("DOMContentLoaded",()=>{
+function renderAll(){
   buildStandings();
   const root=document.getElementById("matches");
+  root.innerHTML="";
   FIXTURES.forEach(fx=>root.appendChild(buildMatchCard(fx)));
   animateCounters();
+}
+
+/* =========================================================================
+   LIVE DATA — real-time enrichment with graceful fallback
+   Stats/form/results : TheSportsDB (keyless, CORS-enabled)
+   Bookmaker odds     : The Odds API (optional user key, CORS-enabled)
+   If a fetch fails (offline / rate-limit / policy), the bundled real-world
+   snapshot is kept and the badge stays on "Offline snapshot".
+   ========================================================================= */
+const LIVE_ODDS={};                       // {fixtureId:{home,draw,away}}
+const LIVE={
+  tsdbBase:"https://www.thesportsdb.com/api/v1/json/3",
+  oddsBase:"https://api.the-odds-api.com/v4",
+  oddsSport:"soccer_fifa_world_cup",
+  oddsKey:(()=>{try{return localStorage.getItem("oddsApiKey")||"";}catch(e){return "";}})(),
+  names:{spain:"Spain",uruguay:"Uruguay",capeverde:"Cape Verde",saudi:"Saudi Arabia"},
+};
+
+function setStatus(state){
+  const b=document.querySelector("[data-ls]");if(!b)return;
+  b.className="ls-badge "+(state==="live"?"live":state==="connecting"?"conn":"snap");
+  const txt={live:"LIVE data",connecting:"Connecting…",snapshot:"Offline snapshot"}[state]||"Offline snapshot";
+  b.innerHTML=`<span class="dot" style="${state==="live"?"":"background:#8595ab;animation:none"}"></span>${txt}`;
+}
+function stampTime(){const t=document.querySelector("[data-lstime]");if(t)t.textContent="Updated "+new Date().toLocaleTimeString();}
+
+function fetchJSON(url,ms=9000){
+  return Promise.race([
+    fetch(url,{mode:"cors"}).then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),ms)),
+  ]);
+}
+
+async function resolveTeamId(name){
+  const d=await fetchJSON(`${LIVE.tsdbBase}/searchteams.php?t=${encodeURIComponent(name)}`);
+  if(!d||!d.teams)return null;
+  // prefer an exact soccer national-team name match
+  const exact=d.teams.find(t=>t.strSport==="Soccer"&&(t.strTeam||"").toLowerCase()===name.toLowerCase());
+  return (exact||d.teams.find(t=>t.strSport==="Soccer")||{}).idTeam||null;
+}
+async function fetchLastEvents(id){
+  const d=await fetchJSON(`${LIVE.tsdbBase}/eventslast.php?id=${id}`);
+  return (d&&d.results)?d.results:[];
+}
+function digestEvents(events,name){           // -> {form:[...], recent:[...]}
+  const games=events.filter(e=>e.intHomeScore!=null&&e.intAwayScore!=null)
+    .sort((a,b)=>(a.dateEvent<b.dateEvent?-1:1));   // oldest -> newest
+  const last=games.slice(-5);
+  const form=[],recent=[];
+  last.forEach(e=>{
+    const home=(e.strHomeTeam||"").toLowerCase().includes(name.toLowerCase());
+    const hs=+e.intHomeScore,as=+e.intAwayScore;
+    const gf=home?hs:as,ga=home?as:hs;
+    form.push(gf>ga?"W":gf===ga?"D":"L");
+    recent.push({date:(e.dateEvent||"").slice(5),home,opp:home?e.strAwayTeam:e.strHomeTeam,score:`${gf}-${ga}`});
+  });
+  return {form,recent:recent.slice(-3)};
+}
+
+async function fetchOdds(){
+  if(!LIVE.oddsKey)return null;
+  const url=`${LIVE.oddsBase}/sports/${LIVE.oddsSport}/odds/?regions=us,uk,eu&markets=h2h&oddsFormat=decimal&apiKey=${encodeURIComponent(LIVE.oddsKey)}`;
+  const data=await fetchJSON(url,12000);
+  if(!Array.isArray(data))return null;
+  FIXTURES.forEach(fx=>{
+    const h=TEAMS[fx.home].name,a=TEAMS[fx.away].name;
+    const ev=data.find(e=>matchName(e.home_team,h)&&matchName(e.away_team,a)||matchName(e.home_team,a)&&matchName(e.away_team,h));
+    if(!ev)return;
+    const acc={home:[],draw:[],away:[]};
+    (ev.bookmakers||[]).forEach(b=>(b.markets||[]).forEach(mk=>{if(mk.key!=="h2h")return;
+      (mk.outcomes||[]).forEach(o=>{
+        if(matchName(o.name,h))acc.home.push(o.price);
+        else if(matchName(o.name,a))acc.away.push(o.price);
+        else if(/draw|tie/i.test(o.name))acc.draw.push(o.price);
+      });}));
+    const avg=arr=>arr.length?arr.reduce((s,x)=>s+x,0)/arr.length:null;
+    const o={home:avg(acc.home),draw:avg(acc.draw),away:avg(acc.away)};
+    if(o.home&&o.away)LIVE_ODDS[fx.id]=o;
+  });
+  return Object.keys(LIVE_ODDS).length?LIVE_ODDS:null;
+}
+function matchName(a,b){if(!a||!b)return false;a=a.toLowerCase();b=b.toLowerCase();return a.includes(b)||b.includes(a);}
+
+async function goLive(){
+  setStatus("connecting");
+  let any=false;
+  try{
+    await Promise.all(Object.keys(LIVE.names).map(async k=>{
+      try{
+        const id=await resolveTeamId(LIVE.names[k]);
+        if(!id)return;
+        const evs=await fetchLastEvents(id);
+        const dig=digestEvents(evs,LIVE.names[k]);
+        if(dig.form.length){TEAMS[k].form=dig.form;TEAMS[k].recent=dig.recent;any=true;}
+      }catch(e){/* per-team failure is non-fatal */}
+    }));
+    try{await fetchOdds();if(Object.keys(LIVE_ODDS).length)any=true;}catch(e){}
+  }catch(e){}
+  if(any){renderAll();setStatus("live");stampTime();}
+  else setStatus("snapshot");
+}
+
+function wireControls(){
+  const r=document.querySelector("[data-refresh]");if(r)r.addEventListener("click",goLive);
+  const o=document.querySelector("[data-oddscfg]");if(o)o.addEventListener("click",()=>{
+    const cur=LIVE.oddsKey||"";
+    const k=prompt("Paste a free API key from the-odds-api.com to show live bookmaker odds.\n(Leave blank to clear. Stored only in this browser.)",cur);
+    if(k===null)return;
+    LIVE.oddsKey=k.trim();
+    try{k.trim()?localStorage.setItem("oddsApiKey",k.trim()):localStorage.removeItem("oddsApiKey");}catch(e){}
+    goLive();
+  });
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  renderAll();          // 1) always show the bundled real-world snapshot first
+  wireControls();
+  goLive();             // 2) then try to enrich with live data (no-op if offline)
 });
 </script>
 </body>
