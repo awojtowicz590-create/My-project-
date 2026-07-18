@@ -8,11 +8,11 @@ const { DAYS, DOWLONG, startOfWeek, addDays, fmt, money, money2 } = E;
 const KEY = 'weeklyBudget.v1';
 
 const DEFAULT = {
-  balance: 0, goal: 0, saveEach: 0,
+  balance: 0, saveEach: 0,
   pay: 0, payday: 5,            // Friday
   incomes: [],                  // {id,name,amount,date}   one-off money in
   bills: [],                    // {id,name,amount,day,freq,emoji}  freq: weekly|biweekly|monthly
-  saved: 0,                     // total already put toward goal
+  goals: [],                    // {id,name,target,saved,emoji}  things you're saving for
   notif: { weekly:false, bills:false, pay:false },
   lastPayApplied: null
 };
@@ -21,11 +21,24 @@ let state = load();
 
 /* ---------- storage ---------- */
 function load(){
-  try{ const s = JSON.parse(localStorage.getItem(KEY)); if(s) return Object.assign({}, DEFAULT, s, {notif:Object.assign({},DEFAULT.notif,s.notif)}); }catch(e){}
+  try{
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if(s){
+      const merged = Object.assign({}, DEFAULT, s, {notif:Object.assign({},DEFAULT.notif,s.notif)});
+      // migrate the old single "savings goal" into the goals list
+      if(!Array.isArray(merged.goals)) merged.goals = [];
+      if(!merged.goals.length && s.goal > 0)
+        merged.goals.push({id:uid(), name:'Savings', target:+s.goal, saved:+(s.saved||0), emoji:'✨'});
+      delete merged.goal; delete merged.saved;
+      return merged;
+    }
+  }catch(e){}
   return structuredClone(DEFAULT);
 }
+const goalsSaved  = () => (state.goals||[]).reduce((s,g)=>s+(+g.saved||0),0);
+const goalsTarget = () => (state.goals||[]).reduce((s,g)=>s+(+g.target||0),0);
 function save(){ localStorage.setItem(KEY, JSON.stringify(state)); pushSummaryToSW(); render(); }
-const uid = () => Math.random().toString(36).slice(2,9);
+function uid(){ return Math.random().toString(36).slice(2,9); }
 
 /* ---------- engine wrappers (bound to current state) ---------- */
 const daysUntil = d => E.daysUntil(d);
@@ -57,7 +70,7 @@ function render(){
   const se=document.getElementById('safeSpend');
   se.textContent = money2(safe); se.className='v '+(safe<0?'neg':'safe');
 
-  document.getElementById('savedNow').textContent = money2(state.saved);
+  document.getElementById('savedNow').textContent = money2(goalsSaved());
 
   // week list
   const wl=document.getElementById('weekList');
@@ -74,19 +87,22 @@ function render(){
       <div class="amt ${cls}">${sign}${money2(e.amount)}</div></div>`;
   }).join('');
 
-  // goal
+  // savings goals — aggregate card on home
   const gc=document.getElementById('goalCard');
-  if(state.goal>0){
+  const tSaved=goalsSaved(), tTarget=goalsTarget();
+  if(state.goals.length && tTarget>0){
     gc.style.display='block';
-    const pct=Math.min(100, state.goal? state.saved/state.goal*100:0);
-    document.getElementById('goalLine').textContent=money2(state.saved)+' / '+money2(state.goal);
+    const pct=Math.min(100, tSaved/tTarget*100);
+    document.getElementById('goalLine').textContent=money2(tSaved)+' / '+money2(tTarget);
     document.getElementById('goalPct').textContent=Math.round(pct)+'%';
     document.getElementById('goalBar').style.width=pct+'%';
-    const remain=Math.max(0,state.goal-state.saved);
+    const remain=Math.max(0,tTarget-tSaved);
     const eta=state.saveEach>0? Math.ceil(remain/state.saveEach):0;
-    document.getElementById('goalEta').textContent = remain<=0? '🎉 Goal reached!' :
-      (state.saveEach>0? `≈ ${eta} more payday${eta>1?'s':''} to go (${money2(remain)} left)` : `${money2(remain)} to go — set a weekly amount in Setup`);
+    const n=state.goals.length;
+    document.getElementById('goalEta').textContent = remain<=0? '🎉 All goals funded!' :
+      (state.saveEach>0? `${n} goal${n>1?'s':''} · ≈ ${eta} payday${eta>1?'s':''} to go at ${money2(state.saveEach)}/wk` : `${n} goal${n>1?'s':''} · ${money2(remain)} left — set a weekly amount in Setup`);
   } else gc.style.display='none';
+  renderGoals();
 
   // outlook (4 weeks)
   const out=document.getElementById('outlook');
@@ -132,7 +148,7 @@ function render(){
   }).join('') : '<div class="empty">No bills yet — tap + Add</div>';
 
   // setup fields
-  setVal('s_balance',state.balance);setVal('s_goal',state.goal);setVal('s_saveEach',state.saveEach);
+  setVal('s_balance',state.balance);setVal('s_saveEach',state.saveEach);
   setVal('s_pay',state.pay);document.getElementById('s_payday').value=state.payday;
   ['weekly','bills','pay'].forEach(k=> document.getElementById('tog_'+k).classList.toggle('on', !!state.notif[k]));
   updateNotifState();
@@ -146,6 +162,41 @@ function nextPaydayLabel(){
   if(!pds.length) return '';
   const du=daysUntil(pds[0]);
   return du===0?'is today 🎉':du===1?'is tomorrow':fmt(pds[0])+` (${du}d)`;
+}
+
+/* ---------- goals ---------- */
+function renderGoals(){
+  const total=document.getElementById('goalsTotal'), sub=document.getElementById('goalsSub');
+  if(total){
+    total.textContent=money2(goalsSaved());
+    const tt=goalsTarget();
+    sub.textContent = state.goals.length? `of ${money2(tt)} across ${state.goals.length} goal${state.goals.length>1?'s':''}` : 'Add the things you\'re saving for';
+  }
+  const gl=document.getElementById('goalsList'); if(!gl) return;
+  gl.innerHTML = state.goals.length ? state.goals.map(g=>{
+    const saved=+g.saved||0, target=+g.target||0;
+    const pct=target>0? Math.min(100, saved/target*100) : 0;
+    const done=target>0 && saved>=target;
+    return `<div class="goal">
+      <div class="ringwrap"><div class="ring" style="--p:${pct.toFixed(1)}"></div><span class="pct">${done?'✓':Math.round(pct)+'%'}</span></div>
+      <div class="mid">
+        <div class="g-name">${g.emoji||'◆'} ${esc(g.name)}</div>
+        <div class="g-sub num">${money2(saved)} ${target>0?'of '+money2(target):''}${done?' · reached 🎉':''}</div>
+      </div>
+      <div class="g-act">
+        <button class="btn ghost mini" onclick="fundGoal('${g.id}')">+ Fund</button>
+        <button class="del" onclick="delItem('goal','${g.id}')">🗑</button>
+      </div></div>`;
+  }).join('') : '<div class="empty">No goals yet — tap + Add to save for something ◆</div>';
+}
+function fundGoal(id){
+  const g=state.goals.find(x=>x.id===id); if(!g) return;
+  const raw=prompt(`Add money to "${g.name}".\nHow much? (use a minus sign to take some out)`, '');
+  if(raw===null) return;
+  const amt=parseFloat(raw);
+  if(isNaN(amt)){ toast('Enter a number'); return; }
+  g.saved=Math.max(0,(+g.saved||0)+amt);
+  save(); toast(amt>=0?`Added ${money2(amt)} ✓`:`Removed ${money2(-amt)}`);
 }
 
 /* ---------- tabs & sheet ---------- */
@@ -166,6 +217,18 @@ function openSheet(kind){
       <div class="field-row"><div><label>Amount</label><input id="f_amt" type="number" inputmode="decimal" placeholder="0.00"></div>
       <div><label>Date expected</label><input id="f_date" type="date" value="${todayISO()}"></div></div>
       <button class="btn primary" style="margin-top:18px" onclick="addIncome()">Add payment</button>`;
+  } else if(kind==='goal'){
+    t.textContent='Add a savings goal';
+    body.innerHTML=`
+      <label>What are you saving for?</label><input id="f_name" placeholder="e.g. New car, Trip to Japan, Emergency fund">
+      <div class="field-row">
+        <div><label>Target amount</label><input id="f_amt" type="number" inputmode="decimal" placeholder="e.g. 2000"></div>
+        <div><label>Already saved</label><input id="f_saved" type="number" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <label>Icon (optional)</label>
+      <div class="seg" id="f_emoji">${['◆','🚗','✈️','🏠','🎓','🛟','💍','🎮','🏝️','🎁'].map((e,i)=>`<button data-e="${e}" class="${i==0?'on':''}">${e}</button>`).join('')}</div>
+      <button class="btn primary" style="margin-top:18px" onclick="addGoal()">Add goal</button>`;
+    document.querySelectorAll('#f_emoji button').forEach(b=> b.onclick=()=>segPick('#f_emoji',b));
   } else {
     t.textContent='Add a bill';
     body.innerHTML=`
@@ -214,8 +277,15 @@ function addBill(){
   if(!amt||amt<=0) return toast('Enter an amount');
   state.bills.push({id:uid(),name,amount:amt,freq,day,emoji}); save(); closeSheet(); toast('Bill added');
 }
+function addGoal(){
+  const name=val('f_name')||'Goal', amt=+val('f_amt'), saved=+val('f_saved')||0;
+  const emoji=document.querySelector('#f_emoji button.on').dataset.e;
+  if(!amt||amt<=0) return toast('Enter a target amount');
+  state.goals.push({id:uid(),name,target:amt,saved:Math.max(0,saved),emoji}); save(); closeSheet(); toast('Goal added ✓');
+}
 function delItem(kind,id){
   if(kind==='income') state.incomes=state.incomes.filter(x=>x.id!==id);
+  else if(kind==='goal') state.goals=state.goals.filter(x=>x.id!==id);
   else state.bills=state.bills.filter(x=>x.id!==id);
   save(); toast('Removed');
 }
@@ -225,7 +295,6 @@ const todayISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d
 /* ---------- setup ---------- */
 function saveSetup(){
   state.balance=+val('s_balance')||0;
-  state.goal=+val('s_goal')||0;
   state.saveEach=+val('s_saveEach')||0;
   state.pay=+val('s_pay')||0;
   state.payday=+document.getElementById('s_payday').value;

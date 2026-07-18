@@ -1,5 +1,5 @@
 /* Weekly Budget service worker — offline cache + best-effort background notifications */
-const CACHE = 'weekly-budget-v2';
+const CACHE = 'weekly-budget-v3';
 const ASSETS = ['./','./index.html','./engine.js','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', e=>{

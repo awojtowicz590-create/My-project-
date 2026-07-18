@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f1419">
+<meta name="theme-color" content="#060910">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -9,121 +9,185 @@
 <title>Weekly Budget</title>
 <style>
   :root{
-    --bg:#0f1419; --card:#1a222c; --card2:#222c38; --line:#2c3947;
-    --txt:#e8eef4; --muted:#8ea0b2; --accent:#3ddc84; --accent2:#4aa3ff;
-    --warn:#ffb020; --danger:#ff5a6a; --radius:16px;
+    --bg:#060910; --ink:#eaf5ff; --muted:#8194ab;
+    --cy:#39e6ff; --vi:#8a76ff; --pos:#37f5b0; --neg:#ff5c72; --warn:#ffc46b;
+    --line:rgba(120,205,255,.14);
+    --glass:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+    --radius:22px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;background:var(--bg);color:var(--txt);
+  html,body{margin:0;color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased}
-  body{padding:env(safe-area-inset-top) 0 calc(80px + env(safe-area-inset-bottom))}
-  a{color:var(--accent2)}
+  body{
+    min-height:100vh;
+    padding:env(safe-area-inset-top) 0 calc(92px + env(safe-area-inset-bottom));
+    background:
+      radial-gradient(1100px 620px at 12% -8%, rgba(57,230,255,.12), transparent 60%),
+      radial-gradient(1000px 720px at 112% 6%, rgba(138,118,255,.14), transparent 55%),
+      radial-gradient(880px 900px at 50% 118%, rgba(55,245,176,.07), transparent 60%),
+      var(--bg);
+    background-attachment:fixed;
+  }
+  ::selection{background:rgba(57,230,255,.3)}
   h1,h2,h3{margin:0}
   .wrap{max-width:520px;margin:0 auto;padding:0 16px}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 
-  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg) 70%,transparent);
-    padding:calc(env(safe-area-inset-top) + 14px) 0 10px}
+  header{position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,rgba(6,9,16,.92) 62%,transparent);
+    padding:calc(env(safe-area-inset-top) + 14px) 0 10px;backdrop-filter:blur(6px)}
   header .wrap{display:flex;align-items:center;justify-content:space-between}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px}
-  .brand .dot{width:26px;height:26px;border-radius:8px;
-    background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-size:15px}
-  .icon-btn{background:var(--card);border:1px solid var(--line);color:var(--txt);
-    width:40px;height:40px;border-radius:12px;font-size:18px;display:grid;place-items:center;cursor:pointer}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:18px;letter-spacing:.3px}
+  .brand .dot{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:15px;
+    background:linear-gradient(135deg,var(--cy),var(--vi));
+    box-shadow:0 0 18px -2px rgba(57,230,255,.7), inset 0 0 0 1px rgba(255,255,255,.25)}
+  .brand b{background:linear-gradient(90deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .icon-btn{background:var(--glass);border:1px solid var(--line);color:var(--ink);
+    width:42px;height:42px;border-radius:13px;font-size:18px;display:grid;place-items:center;cursor:pointer;
+    backdrop-filter:blur(10px);transition:.2s}
+  .icon-btn:active{transform:scale(.94)}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:16px;margin:14px 0}
-  .card h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:12px;font-weight:600}
+  .card{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);
+    padding:17px;margin:14px 0;position:relative;overflow:hidden;
+    backdrop-filter:blur(16px) saturate(125%);
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 18px 44px -22px rgba(0,0,0,.85)}
+  .card::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(57,230,255,.55),rgba(138,118,255,.4),transparent)}
+  .card h3{font-size:12px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin-bottom:13px;font-weight:700}
 
-  .hero{background:linear-gradient(150deg,#1b2b3a,#182029);position:relative;overflow:hidden}
-  .hero .label{color:var(--muted);font-size:13px}
-  .hero .big{font-size:40px;font-weight:800;letter-spacing:-1px;margin:2px 0 4px}
-  .hero .sub{font-size:13px;color:var(--muted)}
-  .safe{color:var(--accent)} .neg{color:var(--danger)}
+  .hero{background:
+      radial-gradient(120% 140% at 0% 0%, rgba(57,230,255,.16), transparent 55%),
+      radial-gradient(130% 150% at 100% 0%, rgba(138,118,255,.20), transparent 55%),
+      linear-gradient(160deg,rgba(20,32,52,.7),rgba(10,14,24,.5))}
+  .hero::after{content:"";position:absolute;inset:-40% -10% auto -10%;height:160%;
+    background:radial-gradient(closest-side,rgba(57,230,255,.10),transparent);
+    animation:drift 9s ease-in-out infinite alternate;pointer-events:none}
+  @keyframes drift{from{transform:translate(-6%,0)}to{transform:translate(10%,4%)}}
+  .hero .label{color:var(--muted);font-size:12.5px;letter-spacing:.5px;text-transform:uppercase;font-weight:600;position:relative}
+  .hero .big{font-size:44px;font-weight:800;letter-spacing:-1.5px;margin:4px 0 5px;position:relative;
+    text-shadow:0 0 26px rgba(57,230,255,.28)}
+  .hero .sub{font-size:13px;color:var(--muted);position:relative}
+  .hero.pos .big{text-shadow:0 0 26px rgba(55,245,176,.3)}
+  .hero.warm .big{text-shadow:0 0 26px rgba(255,92,114,.28)}
+  .hero.viol .big{text-shadow:0 0 26px rgba(138,118,255,.32)}
+  .safe,.pos-t{color:var(--pos)} .neg{color:var(--neg)}
 
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .stat{background:var(--card2);border-radius:12px;padding:12px}
-  .stat .k{font-size:12px;color:var(--muted)}
-  .stat .v{font-size:20px;font-weight:700;margin-top:3px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .stat{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:15px;padding:13px 14px}
+  .stat .k{font-size:11.5px;color:var(--muted);letter-spacing:.3px}
+  .stat .v{font-size:21px;font-weight:800;margin-top:4px;letter-spacing:-.5px}
 
-  .bar{height:10px;border-radius:99px;background:#0d141b;overflow:hidden;margin-top:10px}
-  .bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .5s}
+  .bar{height:9px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:11px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
+  .bar > i{display:block;height:100%;border-radius:99px;transition:width .6s cubic-bezier(.3,.9,.3,1);
+    background:linear-gradient(90deg,var(--cy),var(--vi));box-shadow:0 0 14px rgba(57,230,255,.55)}
 
-  .row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}
   .row:first-of-type{border-top:0}
-  .row .emoji{width:38px;height:38px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+  .row .emoji{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:19px;flex:0 0 auto;
+    background:rgba(255,255,255,.04);border:1px solid var(--line)}
   .row .mid{flex:1;min-width:0}
-  .row .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
   .row .meta{font-size:12px;color:var(--muted);margin-top:2px}
-  .row .amt{font-weight:700;font-variant-numeric:tabular-nums}
-  .amt.in{color:var(--accent)} .amt.out{color:var(--danger)}
-  .pill{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--card2);color:var(--muted);border:1px solid var(--line)}
-  .pill.due{background:rgba(255,90,106,.12);color:#ff8a95;border-color:transparent}
-  .pill.soon{background:rgba(255,176,32,.14);color:var(--warn);border-color:transparent}
-  .pill.pay{background:rgba(61,220,132,.14);color:var(--accent);border-color:transparent}
+  .row .amt{font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+  .amt.in{color:var(--pos)} .amt.out{color:var(--neg)}
+  .pill{font-size:10.5px;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.05);color:var(--muted);
+    border:1px solid var(--line);font-weight:600;letter-spacing:.3px}
+  .pill.due{background:rgba(255,92,114,.16);color:#ff8a99;border-color:transparent;box-shadow:0 0 12px -3px rgba(255,92,114,.6)}
+  .pill.soon{background:rgba(255,196,107,.16);color:var(--warn);border-color:transparent}
+  .pill.pay{background:rgba(57,230,255,.16);color:var(--cy);border-color:transparent;box-shadow:0 0 12px -3px rgba(57,230,255,.6)}
 
-  .empty{color:var(--muted);text-align:center;padding:22px 8px;font-size:14px}
-  .del{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:6px}
+  .empty{color:var(--muted);text-align:center;padding:24px 8px;font-size:14px}
+  .del{background:none;border:0;color:var(--muted);font-size:17px;cursor:pointer;padding:6px;opacity:.7}
+  .del:active{opacity:1}
+
+  /* progress ring (goals) */
+  .ringwrap{position:relative;width:66px;height:66px;flex:0 0 auto}
+  .ring{width:66px;height:66px;border-radius:50%;
+    background:conic-gradient(from -90deg, var(--cy), var(--vi) calc(var(--p,0)*1%), rgba(255,255,255,.06) calc(var(--p,0)*1%));
+    filter:drop-shadow(0 0 7px rgba(57,230,255,.4))}
+  .ring::after{content:"";position:absolute;inset:7px;border-radius:50%;
+    background:radial-gradient(circle at 50% 30%,rgba(20,30,48,.9),rgba(8,11,18,.95))}
+  .ringwrap .pct{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:800;letter-spacing:-.3px}
+  .goal{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+  .goal:first-of-type{border-top:0}
+  .goal .g-name{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:7px}
+  .goal .g-sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .goal .g-act{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 
   /* tabs */
   nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;
-    background:rgba(17,23,30,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    padding:8px 0 calc(8px + env(safe-area-inset-bottom))}
-  nav.tabs .wrap{display:flex;justify-content:space-around}
-  nav.tabs button{background:none;border:0;color:var(--muted);font-size:11px;display:flex;
-    flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 14px;font-weight:600}
-  nav.tabs button .ic{font-size:21px}
-  nav.tabs button.on{color:var(--accent)}
+    background:linear-gradient(180deg,rgba(6,9,16,.55),rgba(6,9,16,.9));
+    backdrop-filter:blur(22px) saturate(140%);border-top:1px solid var(--line);
+    padding:9px 0 calc(9px + env(safe-area-inset-bottom))}
+  nav.tabs .wrap{display:flex;justify-content:space-between;padding:0 10px}
+  nav.tabs button{background:none;border:0;color:var(--muted);font-size:10px;display:flex;
+    flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:3px 9px;font-weight:600;
+    letter-spacing:.2px;position:relative;transition:.2s}
+  nav.tabs button .ic{font-size:20px;transition:.2s;filter:grayscale(.4) opacity(.75)}
+  nav.tabs button.on{color:var(--cy);text-shadow:0 0 12px rgba(57,230,255,.6)}
+  nav.tabs button.on .ic{filter:none;transform:translateY(-1px)}
+  nav.tabs button.on::after{content:"";position:absolute;top:-9px;width:26px;height:3px;border-radius:99px;
+    background:linear-gradient(90deg,var(--cy),var(--vi));box-shadow:0 0 12px rgba(57,230,255,.8)}
 
-  .page{display:none} .page.on{display:block;animation:fade .25s}
-  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .page{display:none} .page.on{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
   /* buttons + forms */
-  .btn{display:block;width:100%;padding:14px;border-radius:14px;border:0;font-size:15px;font-weight:700;cursor:pointer}
-  .btn.primary{background:linear-gradient(135deg,var(--accent),#2bb46a);color:#06210f}
-  .btn.ghost{background:var(--card);border:1px solid var(--line);color:var(--txt)}
-  .btn.mini{width:auto;padding:9px 14px;font-size:13px;border-radius:11px}
-  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
-  input,select{width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);
-    background:var(--card2);color:var(--txt);font-size:16px;outline:none}
-  input:focus,select:focus{border-color:var(--accent2)}
+  .btn{display:block;width:100%;padding:15px;border-radius:15px;border:0;font-size:15px;font-weight:800;cursor:pointer;
+    letter-spacing:.3px;transition:.15s}
+  .btn:active{transform:scale(.985)}
+  .btn.primary{background:linear-gradient(135deg,var(--cy),var(--vi));color:#04121a;
+    box-shadow:0 10px 34px -10px rgba(57,230,255,.7), inset 0 0 0 1px rgba(255,255,255,.2)}
+  .btn.ghost{background:rgba(255,255,255,.045);border:1px solid var(--line);color:var(--ink);backdrop-filter:blur(8px)}
+  .btn.mini{width:auto;padding:10px 15px;font-size:13px;border-radius:12px}
+  label{display:block;font-size:13px;color:var(--muted);margin:13px 0 6px;letter-spacing:.2px}
+  input,select{width:100%;padding:14px;border-radius:13px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--ink);font-size:16px;outline:none;transition:.2s}
+  input:focus,select:focus{border-color:var(--cy);box-shadow:0 0 0 3px rgba(57,230,255,.15)}
   .field-row{display:flex;gap:10px}
   .field-row > div{flex:1}
-  .seg{display:flex;gap:6px;flex-wrap:wrap}
-  .seg button{flex:1;min-width:60px;padding:10px;border-radius:11px;border:1px solid var(--line);
-    background:var(--card2);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer}
-  .seg button.on{background:var(--accent2);color:#03121f;border-color:transparent}
+  .seg{display:flex;gap:7px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:58px;padding:11px;border-radius:12px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+  .seg button.on{background:linear-gradient(135deg,rgba(57,230,255,.9),rgba(138,118,255,.9));color:#03121f;border-color:transparent;
+    box-shadow:0 0 16px -4px rgba(57,230,255,.7)}
 
   /* modal */
   .sheet{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;
-    background:rgba(0,0,0,.5)}
+    background:rgba(2,4,8,.62);backdrop-filter:blur(4px)}
   .sheet.on{display:flex}
-  .sheet .panel{background:var(--card);width:100%;max-width:520px;border-radius:22px 22px 0 0;
-    padding:18px 18px calc(22px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto;
-    animation:up .28s cubic-bezier(.2,.8,.2,1)}
+  .sheet .panel{width:100%;max-width:520px;border-radius:26px 26px 0 0;
+    padding:20px 18px calc(24px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto;
+    background:linear-gradient(180deg,rgba(18,26,42,.98),rgba(9,13,22,.99));
+    border:1px solid var(--line);border-bottom:0;
+    box-shadow:0 -20px 60px -20px rgba(0,0,0,.9), 0 -1px 0 rgba(57,230,255,.3) inset;
+    animation:up .3s cubic-bezier(.2,.85,.25,1)}
   @keyframes up{from{transform:translateY(100%)}to{transform:none}}
-  .sheet h2{font-size:18px;margin-bottom:4px}
-  .sheet .close{float:right;font-size:22px;color:var(--muted);background:none;border:0;cursor:pointer}
+  .sheet h2{font-size:19px;margin-bottom:4px;letter-spacing:.2px}
+  .sheet .close{float:right;font-size:20px;color:var(--muted);background:rgba(255,255,255,.06);border:0;cursor:pointer;
+    width:34px;height:34px;border-radius:50%}
 
-  .banner{background:linear-gradient(135deg,#1e3348,#1a2735);border:1px solid var(--line);
-    border-radius:14px;padding:13px;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center}
-  .banner b{color:var(--txt)}
-  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:#e8eef4;color:#0f1419;padding:11px 18px;border-radius:99px;font-weight:600;font-size:14px;
-    opacity:0;pointer-events:none;transition:.3s;z-index:60;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .toast{position:fixed;bottom:104px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:linear-gradient(135deg,var(--cy),var(--vi));color:#04121a;padding:12px 20px;border-radius:99px;
+    font-weight:800;font-size:14px;opacity:0;pointer-events:none;transition:.3s;z-index:60;
+    box-shadow:0 12px 40px -8px rgba(57,230,255,.6)}
   .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
   .muted{color:var(--muted)} .small{font-size:12px} .center{text-align:center}
-  .switch{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line)}
+  .switch{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-top:1px solid var(--line);gap:12px}
   .switch:first-child{border-top:0}
-  .tog{width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;flex:0 0 auto;transition:.2s}
-  .tog.on{background:var(--accent)}
-  .tog i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
-  .tog.on i{left:21px}
+  .tog{width:48px;height:29px;border-radius:99px;background:rgba(255,255,255,.1);position:relative;cursor:pointer;flex:0 0 auto;transition:.25s}
+  .tog.on{background:linear-gradient(135deg,var(--cy),var(--vi));box-shadow:0 0 16px -2px rgba(57,230,255,.7)}
+  .tog i{position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;transition:.25s}
+  .tog.on i{left:22px}
+  .sechead{display:flex;justify-content:space-between;align-items:center;margin:6px 2px 0}
+  .sechead h3{font-size:12px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);font-weight:700}
 </style>
 
 <header>
   <div class="wrap">
-    <div class="brand"><span class="dot">💰</span><span>Weekly Budget</span></div>
+    <div class="brand"><span class="dot">◈</span><span>Weekly&nbsp;<b>Budget</b></span></div>
     <button class="icon-btn" id="bellBtn" title="Notifications">🔔</button>
   </div>
 </header>
@@ -133,31 +197,31 @@
   <!-- ============ HOME ============ -->
   <section class="page on" id="page-home">
     <div class="card hero">
-      <div class="label">Money available right now</div>
-      <div class="big" id="balanceBig">$0</div>
+      <div class="label">Money available now</div>
+      <div class="big num" id="balanceBig">$0</div>
       <div class="sub" id="balanceSub">Tap Setup to add your balance</div>
     </div>
 
     <div class="grid2">
-      <div class="stat"><div class="k">Safe to spend this week</div><div class="v" id="safeSpend">$0</div></div>
-      <div class="stat"><div class="k">Saved toward goal</div><div class="v" id="savedNow">$0</div></div>
+      <div class="stat"><div class="k">Safe to spend this week</div><div class="v num" id="safeSpend">$0</div></div>
+      <div class="stat"><div class="k">Saved so far</div><div class="v num" id="savedNow">$0</div></div>
     </div>
 
     <div class="card" id="goalCard" style="display:none">
-      <h3>Savings goal</h3>
+      <h3>Savings goals</h3>
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <div style="font-size:22px;font-weight:700" id="goalLine">$0 / $0</div>
-        <div class="muted small" id="goalPct">0%</div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-.5px" class="num" id="goalLine">$0 / $0</div>
+        <div class="muted small num" id="goalPct">0%</div>
       </div>
       <div class="bar"><i id="goalBar" style="width:0%"></i></div>
-      <div class="muted small" id="goalEta" style="margin-top:8px"></div>
+      <div class="muted small" id="goalEta" style="margin-top:9px"></div>
     </div>
 
     <div class="card">
       <h3>This week · <span id="weekRange" class="muted"></span></h3>
-      <div class="grid2" style="margin-bottom:12px">
-        <div class="stat"><div class="k">💵 Coming in</div><div class="v safe" id="wkIn">$0</div></div>
-        <div class="stat"><div class="k">📆 Bills due</div><div class="v neg" id="wkOut">$0</div></div>
+      <div class="grid2" style="margin-bottom:13px">
+        <div class="stat"><div class="k">Coming in</div><div class="v safe num" id="wkIn">$0</div></div>
+        <div class="stat"><div class="k">Bills due</div><div class="v neg num" id="wkOut">$0</div></div>
       </div>
       <div id="weekList"></div>
     </div>
@@ -170,13 +234,13 @@
 
   <!-- ============ INCOME ============ -->
   <section class="page" id="page-income">
-    <div class="card hero" style="background:linear-gradient(150deg,#16321f,#14231a)">
+    <div class="card hero pos">
       <div class="label">Weekly paycheck</div>
-      <div class="big safe" id="payBig">$0</div>
+      <div class="big safe num" id="payBig">$0</div>
       <div class="sub" id="payDayLine">Set your payday in Setup</div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 2px 0">
-      <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Other money coming in</h3>
+    <div class="sechead">
+      <h3>Other money coming in</h3>
       <button class="btn ghost mini" onclick="openSheet('income')">+ Add</button>
     </div>
     <div class="card"><div id="incomeList"></div></div>
@@ -185,16 +249,31 @@
 
   <!-- ============ BILLS ============ -->
   <section class="page" id="page-bills">
-    <div class="card hero" style="background:linear-gradient(150deg,#321a20,#231519)">
+    <div class="card hero warm">
       <div class="label">Total monthly bills</div>
-      <div class="big neg" id="billsBig">$0</div>
+      <div class="big neg num" id="billsBig">$0</div>
       <div class="sub" id="billsSub">Recurring payments going out</div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:4px 2px 0">
-      <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Your bills</h3>
+    <div class="sechead">
+      <h3>Your bills</h3>
       <button class="btn ghost mini" onclick="openSheet('bill')">+ Add</button>
     </div>
     <div class="card"><div id="billsList"></div></div>
+  </section>
+
+  <!-- ============ GOALS ============ -->
+  <section class="page" id="page-goals">
+    <div class="card hero viol">
+      <div class="label">Saving toward</div>
+      <div class="big num" id="goalsTotal">$0</div>
+      <div class="sub" id="goalsSub">Add the things you're saving for</div>
+    </div>
+    <div class="sechead">
+      <h3>Your goals</h3>
+      <button class="btn ghost mini" onclick="openSheet('goal')">+ Add</button>
+    </div>
+    <div class="card"><div id="goalsList"></div></div>
+    <p class="muted small center">A car, a trip, an emergency fund — tap a goal to add money to it.</p>
   </section>
 
   <!-- ============ SETUP ============ -->
@@ -203,10 +282,9 @@
       <h3>Your money</h3>
       <label>How much money do you have right now?</label>
       <input id="s_balance" type="number" inputmode="decimal" placeholder="0.00">
-      <label>How much do you want to save in total? (goal)</label>
-      <input id="s_goal" type="number" inputmode="decimal" placeholder="e.g. 2000">
-      <label>Put aside toward savings each payday</label>
+      <label>Set aside toward savings each payday</label>
       <input id="s_saveEach" type="number" inputmode="decimal" placeholder="e.g. 100">
+      <p class="muted small" style="margin-top:10px">Add specific things you're saving for in the <b>Goals</b> tab.</p>
     </div>
     <div class="card">
       <h3>Your paycheck</h3>
@@ -236,7 +314,7 @@
       <button class="btn ghost mini" onclick="exportData()">Export backup</button>
       <button class="btn ghost mini" style="margin-left:8px" onclick="document.getElementById('importFile').click()">Import backup</button>
       <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
-      <button class="btn ghost mini" style="margin-top:12px;color:var(--danger)" onclick="resetAll()">Erase all data</button>
+      <button class="btn ghost mini" style="margin-top:12px;color:var(--neg)" onclick="resetAll()">Erase all data</button>
       <p class="muted small" style="margin-top:12px">Everything stays on this phone. Nothing is uploaded. Add to Home Screen for the full app + notifications.</p>
     </div>
   </section>
@@ -245,10 +323,11 @@
 <!-- bottom nav -->
 <nav class="tabs">
   <div class="wrap">
-    <button data-tab="home" class="on"><span class="ic">🏠</span>Home</button>
-    <button data-tab="income"><span class="ic">💵</span>Income</button>
-    <button data-tab="bills"><span class="ic">🧾</span>Bills</button>
-    <button data-tab="setup"><span class="ic">⚙️</span>Setup</button>
+    <button data-tab="home" class="on"><span class="ic">◈</span>Home</button>
+    <button data-tab="income"><span class="ic">↗</span>Income</button>
+    <button data-tab="bills"><span class="ic">▤</span>Bills</button>
+    <button data-tab="goals"><span class="ic">◆</span>Goals</button>
+    <button data-tab="setup"><span class="ic">⚙</span>Setup</button>
   </div>
 </nav>
 
