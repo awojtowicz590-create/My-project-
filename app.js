@@ -461,18 +461,29 @@ function deviceRegistration(sub){
   };
 }
 
-/* Open a pre-filled GitHub issue so the Action can file this phone. */
+/* Create the push subscription and show the registration code to copy. */
 async function registerPhone(){
   if(!actionsMode) return;
   if(!await ensurePerm()){ updateNotifState(); return; }
   let sub;
   try{ sub=await subscribePush(); }
   catch(e){ toast('Couldn\'t subscribe — is this installed to your Home Screen?'); return; }
-  const reg=deviceRegistration(sub);
-  const body='This registers my phone for budget alerts. Just tap **Submit new issue** — a bot files it and closes this.\n\n```json\n'+JSON.stringify(reg,null,2)+'\n```';
-  const url=`https://github.com/${pushConfig.repo}/issues/new?title=`+encodeURIComponent('device-registration')+'&body='+encodeURIComponent(body);
-  window.open(url,'_blank');
-  toast('Opening GitHub — tap Submit to finish');
+  const blob=JSON.stringify(deviceRegistration(sub));
+  document.getElementById('sheetTitle').textContent='Finish registering this phone';
+  document.getElementById('sheetBody').innerHTML=`
+    <p class="muted small" style="line-height:1.5">Copy the code below and <b>paste it to Claude in your chat</b> to finish. This links this phone so alerts reach you when the app is closed. (No dollar amounts are in here — only timing.)</p>
+    <textarea id="regBlob" readonly style="width:100%;height:130px;margin-top:8px;padding:12px;border-radius:13px;
+      border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-size:12px;
+      font-family:ui-monospace,Menlo,monospace;resize:none">${esc(blob)}</textarea>
+    <button class="btn primary" style="margin-top:14px" onclick="copyReg()">📋 Copy registration code</button>`;
+  document.getElementById('sheet').classList.add('on');
+}
+function copyReg(){
+  const t=document.getElementById('regBlob'); if(!t) return;
+  t.focus(); t.select(); t.setSelectionRange(0,99999);
+  const done=()=>toast('Copied ✓ — now paste it to Claude');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t.value).then(done).catch(()=>{ try{document.execCommand('copy');done();}catch(e){toast('Select the text and copy it');} }); }
+  else { try{document.execCommand('copy');done();}catch(e){toast('Select the text and copy it');} }
 }
 
 async function enablePush(){
