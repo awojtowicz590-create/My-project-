@@ -1,0 +1,38 @@
+name: Deploy app to GitHub Pages
+
+# Turns on GitHub Pages automatically and publishes the app — no settings needed.
+on:
+  push:
+    branches: [claude/budget-tracking-app-lend88]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/notify
+          cp index.html engine.js app.js sw.js manifest.webmanifest icon-192.png icon-512.png _site/
+          cp notify/config.json _site/notify/config.json
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
