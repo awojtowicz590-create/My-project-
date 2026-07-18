@@ -1,8 +1,10 @@
-/* Weekly Budget — on-device PWA. All data lives in localStorage on this phone. */
+/* Weekly Budget PWA. Data lives in localStorage on this phone. When push is
+   enabled and a server is present, the schedule is also synced to the server so
+   it can deliver notifications while the app is closed. */
 'use strict';
 
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const DOWLONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const E = BudgetEngine;
+const { DAYS, DOWLONG, startOfWeek, addDays, fmt, money, money2 } = E;
 const KEY = 'weeklyBudget.v1';
 
 const DEFAULT = {
@@ -24,55 +26,12 @@ function load(){
 }
 function save(){ localStorage.setItem(KEY, JSON.stringify(state)); pushSummaryToSW(); render(); }
 const uid = () => Math.random().toString(36).slice(2,9);
-const money = n => (n<0?'-':'') + '$' + Math.abs(Math.round(n)).toLocaleString();
-const money2 = n => '$' + Math.abs(n).toLocaleString(undefined,{minimumFractionDigits: n%1?2:0, maximumFractionDigits:2});
 
-/* ---------- date helpers ---------- */
-function startOfWeek(d){ const x=new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-x.getDay()); return x; } // week starts Sunday
-function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
-function fmt(d){ return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
-function sameDay(a,b){ return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
-function daysUntil(d){ const t=new Date(); t.setHours(0,0,0,0); return Math.round((new Date(d).setHours(0,0,0,0)-t)/864e5); }
-
-/* Return every occurrence of a bill within [from,to] inclusive. */
-function billDates(bill, from, to){
-  const out=[];
-  if(bill.freq==='monthly'){
-    let m=new Date(from.getFullYear(),from.getMonth(),1);
-    while(m<=to){
-      const dim=new Date(m.getFullYear(),m.getMonth()+1,0).getDate();
-      const day=Math.min(bill.day,dim);
-      const d=new Date(m.getFullYear(),m.getMonth(),day);
-      if(d>=from&&d<=to) out.push(d);
-      m=new Date(m.getFullYear(),m.getMonth()+1,1);
-    }
-  } else {
-    const step = bill.freq==='biweekly'?14:7;
-    // bill.day is day-of-week here; find first matching >= from
-    let d=new Date(from); d.setHours(0,0,0,0);
-    while(d.getDay()!==bill.day) d=addDays(d,1);
-    for(; d<=to; d=addDays(d,step)) if(d>=from) out.push(new Date(d));
-  }
-  return out;
-}
-/* Paydays within range */
-function payDates(from,to){
-  const out=[]; if(!state.pay) return out;
-  let d=new Date(from); d.setHours(0,0,0,0);
-  while(d.getDay()!==state.payday) d=addDays(d,1);
-  for(; d<=to; d=addDays(d,7)) if(d>=from) out.push(new Date(d));
-  return out;
-}
-
-/* Build a merged, sorted list of events between two dates */
-function eventsBetween(from,to){
-  const ev=[];
-  payDates(from,to).forEach(d=> ev.push({type:'pay',name:'Payday',amount:state.pay,date:d,emoji:'💵'}));
-  state.bills.forEach(b=> billDates(b,from,to).forEach(d=> ev.push({type:'bill',name:b.name,amount:b.amount,date:d,emoji:b.emoji||'🧾',freq:b.freq})));
-  state.incomes.forEach(i=>{ const d=new Date(i.date+'T00:00:00'); if(d>=from&&d<=to) ev.push({type:'income',name:i.name,amount:i.amount,date:d,emoji:'💰',id:i.id}); });
-  ev.sort((a,b)=>a.date-b.date);
-  return ev;
-}
+/* ---------- engine wrappers (bound to current state) ---------- */
+const daysUntil = d => E.daysUntil(d);
+const payDates = (from,to) => E.payDates(state, from, to);
+const eventsBetween = (from,to) => E.eventsBetween(state, from, to);
+const weeklySummaryText = () => E.weeklySummaryText(state);
 
 /* ---------- rendering ---------- */
 function render(){
@@ -278,10 +237,13 @@ function saveSetup(){
 function updateNotifState(){
   const el=document.getElementById('notifState'); if(!el) return;
   const p = ('Notification' in window)? Notification.permission : 'unsupported';
-  el.textContent = p==='granted'? '✓ Notifications are on for this device.' :
-    p==='denied'? '⚠ Notifications are blocked. Enable them in your browser/site settings.' :
+  const anyOn = state.notif.weekly||state.notif.bills||state.notif.pay;
+  el.textContent = p==='denied'? '⚠ Notifications are blocked. Enable them in your browser/site settings.' :
     p==='unsupported'? 'This browser doesn\'t support notifications.' :
-    'Turn on a switch above and allow notifications when asked.';
+    p!=='granted'? 'Turn on a switch above and allow notifications when asked.' :
+    (serverMode && anyOn)? '✓ Push is on — you\'ll get alerts even when the app is closed.' :
+    serverMode? '✓ Connected to your push server. Turn on a switch to get closed-app alerts.' :
+    '✓ Notifications on for this device (reminders show while the app is open).';
 }
 async function ensurePerm(){
   if(!('Notification' in window)){ toast('Notifications not supported'); return false; }
@@ -290,11 +252,12 @@ async function ensurePerm(){
   const p=await Notification.requestPermission(); updateNotifState(); return p==='granted';
 }
 async function toggleNotif(kind){
-  if(!state.notif[kind]){ if(!await ensurePerm()){ updateNotifState(); return; } }
-  state.notif[kind]=!state.notif[kind]; save();
+  const turningOn=!state.notif[kind];
+  if(turningOn){ if(!await ensurePerm()){ updateNotifState(); return; } }
+  state.notif[kind]=turningOn; save();
   document.getElementById('tog_'+kind).classList.toggle('on',state.notif[kind]);
-  if(state.notif[kind]) toast('On ✓');
-  scheduleReminders();
+  if(turningOn){ toast('On ✓'); if(serverMode) await enablePush(); }
+  scheduleReminders(); updateNotifState();
 }
 document.getElementById('bellBtn').onclick=async()=>{ if(await ensurePerm()){ toast('Notifications enabled'); document.querySelector('[data-tab=setup]').click(); } updateNotifState(); };
 
@@ -332,23 +295,15 @@ function scheduleReminders(){
     if(now.getDay()===state.payday && shown['weekly-'+today]!==today){ showNote('Your week ahead 📊', weeklySummaryText(),'weekly'); mark('weekly-'+today); }
   }
 }
-function weeklySummaryText(){
-  const s=startOfWeek(new Date()), e=addDays(s,6);
-  const ev=eventsBetween(s,e);
-  const inn=ev.filter(x=>x.type!=='bill').reduce((a,b)=>a+b.amount,0);
-  const out=ev.filter(x=>x.type==='bill').reduce((a,b)=>a+b.amount,0);
-  const savw=payDates(s,e).length*state.saveEach;
-  const safe=state.balance+inn-out-savw;
-  return `In: ${money2(inn)} · Bills: ${money2(out)} · Safe to spend: ${money2(safe)}`;
-}
-
-/* Store a compact summary the service worker can read for background notifications. */
+/* Store a compact summary the service worker can read, and (if push is on)
+   sync the schedule to the server so it can notify while the app is closed. */
 function pushSummaryToSW(){
   try{
     const payload={ summary:weeklySummaryText(), notif:state.notif, payday:state.payday, ts:Date.now() };
     localStorage.setItem('wb.swdata',JSON.stringify(payload));
     if(navigator.serviceWorker?.controller) navigator.serviceWorker.controller.postMessage({type:'summary',payload});
   }catch(e){}
+  syncServer();
 }
 
 /* ---------- data import/export ---------- */
@@ -362,21 +317,87 @@ function importData(ev){
   const r=new FileReader(); r.onload=()=>{ try{ state=Object.assign({},DEFAULT,JSON.parse(r.result)); save(); toast('Imported ✓'); }catch(e){ toast('Bad file'); } };
   r.readAsText(f); ev.target.value='';
 }
-function resetAll(){ if(confirm('Erase everything on this device? This cannot be undone.')){ localStorage.removeItem(KEY); state=structuredClone(DEFAULT); save(); toast('All data erased'); } }
+function resetAll(){ if(confirm('Erase everything on this device (and on the server, if connected)? This cannot be undone.')){ deleteServerData(); localStorage.removeItem(KEY); localStorage.removeItem('wb.sub'); state=structuredClone(DEFAULT); save(); toast('All data erased'); } }
 
 /* ---------- toast ---------- */
 let toastT; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1900); }
 
-/* ---------- service worker ---------- */
+/* =========================================================================
+   SERVER PUSH — deliver notifications while the app is fully closed.
+   Only active when the app is served by its own push server (which exposes
+   /api/vapid). On GitHub Pages / file:// it silently no-ops and the app falls
+   back to on-device reminders.
+   ========================================================================= */
+let serverMode = false;          // true once we've confirmed a push server
+let vapidPublicKey = null;
+const deviceId = (()=>{ let d=localStorage.getItem('wb.device'); if(!d){ d='dev_'+uid()+uid(); localStorage.setItem('wb.device',d); } return d; })();
+
+function b64ToUint8(base64){
+  const pad='='.repeat((4-base64.length%4)%4);
+  const s=(base64+pad).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(s); return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+
+async function detectServer(){
+  try{
+    const r=await fetch('api/vapid',{cache:'no-store'});
+    if(!r.ok) return;
+    const j=await r.json();
+    if(j&&j.publicKey){ vapidPublicKey=j.publicKey; serverMode=true; }
+  }catch(e){ /* no server — on-device only */ }
+}
+
+async function enablePush(){
+  if(!serverMode||!('serviceWorker' in navigator)||!('PushManager' in window)) return false;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToUint8(vapidPublicKey)});
+    localStorage.setItem('wb.sub',JSON.stringify(sub));
+    await syncServer(sub);
+    return true;
+  }catch(e){ return false; }
+}
+
+let syncT;
+function syncServer(sub){
+  if(!serverMode) return;
+  const anyNotif = state.notif.weekly||state.notif.bills||state.notif.pay;
+  if(!anyNotif) return;
+  clearTimeout(syncT);
+  syncT=setTimeout(async()=>{
+    try{
+      const subscription = sub || JSON.parse(localStorage.getItem('wb.sub')||'null');
+      if(!subscription) return;
+      await fetch('api/schedule',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ deviceId, subscription, tzOffset:new Date().getTimezoneOffset(),
+          schedule:{ balance:state.balance, pay:state.pay, payday:state.payday, saveEach:state.saveEach,
+                     goal:state.goal, saved:state.saved, bills:state.bills, incomes:state.incomes, notif:state.notif } })});
+    }catch(e){}
+  },600);
+}
+
+async function deleteServerData(){
+  if(!serverMode) return;
+  try{ await fetch('api/data',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceId})}); }catch(e){}
+}
+
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(async reg=>{
-    // best-effort background weekly notifications where supported
     try{ if('periodicSync' in reg){ const st=await navigator.permissions.query({name:'periodic-background-sync'}); if(st.state==='granted') await reg.periodicSync.register('weekly-summary',{minInterval:24*60*60*1000}); } }catch(e){}
   }).catch(()=>{});
 }
 
 /* ---------- boot ---------- */
 render();
-pushSummaryToSW();
 scheduleReminders();
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ render(); scheduleReminders(); } });
+detectServer().then(async()=>{
+  updateNotifState();
+  // If push was already granted + a notification type is on, (re)subscribe & sync.
+  if(serverMode && 'Notification' in window && Notification.permission==='granted'
+     && (state.notif.weekly||state.notif.bills||state.notif.pay)){
+    await enablePush();
+  }
+  pushSummaryToSW();
+});
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ render(); scheduleReminders(); if(serverMode) syncServer(); } });

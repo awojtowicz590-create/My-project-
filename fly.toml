@@ -1,0 +1,31 @@
+# Fly.io config for the Weekly Budget push server.
+# Rename `app` to something globally unique before deploying (see README).
+app = "weekly-budget"
+primary_region = "iad"   # change to a region near you: https://fly.io/docs/reference/regions/
+
+[build]
+
+[env]
+  DATA_DIR = "/data"
+  TZ = "UTC"
+  # Optional: the hour (0-23, in each user's local time) to send daily alerts.
+  SEND_HOUR = "8"
+  # Optional but recommended for VAPID contact:
+  # CONTACT_EMAIL = "mailto:you@example.com"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Keep ONE machine always running so the scheduler can fire pushes.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Persistent disk for subscriptions + VAPID keys.
+[mounts]
+  source = "wb_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

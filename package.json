@@ -1,0 +1,16 @@
+{
+  "name": "weekly-budget",
+  "version": "1.0.0",
+  "description": "Weekly Budget PWA with a push server for closed-app notifications",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/scheduler.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
