@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "id": "dev_cfkieegu5cftgl",
+    "tz": "America/Detroit",
+    "payday": 5,
+    "notif": {
+      "weekly": true,
+      "bills": true,
+      "pay": true
+    },
+    "bills": [
+      {
+        "name": "Kanye",
+        "freq": "biweekly",
+        "day": 5
+      },
+      {
+        "name": "Student loans",
+        "freq": "monthly",
+        "day": 1
+      },
+      {
+        "name": "Mom bills",
+        "freq": "monthly",
+        "day": 1
+      },
+      {
+        "name": "Credit card",
+        "freq": "weekly",
+        "day": 5
+      }
+    ],
+    "subscription": {
+      "endpoint": "https://web.push.apple.com/QI-Z2qjnGtBLQeWo8lFBDW1rESH1hcQx5C9Yl6gQqkqh0f-Nxm6VIimSzv6nEnDDnNPOQjr-vfmqJ-PxpCLccAzDAf2ej5mCgin2oxMOOTP_C8ssb4qtSjuphUSzOLasxaTD8NeLxpAHH2qFT2NYSNGxVCYNaqLZaUCKOTnWQJM",
+      "keys": {
+        "p256dh": "BHhxFhpJiUBTN6HuT2iTTj6NKmSOtb4l5icS2NFXnqBzCodmD4ii4GtiM-xCCHQzKQKpzcDRTlMfHQZxZ4xcNOc",
+        "auth": "fq0mtYmDxk_XBSb_JkE0Kg"
+      }
+    }
+  }
+]
