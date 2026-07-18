@@ -1,98 +1,184 @@
-# ⚽ World Cup 2026 · Group H — Predictor & Live Match Simulator
+# 💰 Weekly Budget
 
-A **single, self-contained HTML file** — no libraries, no build step, no internet.
-Just **double-click `index.html`** and it runs in any browser.
+A **budget tracking app for your phone** that shows a weekly rundown of money
+coming in (paychecks + payments) and going out (bills), tells you what's **safe
+to spend**, and tracks progress toward a **savings goal** — with **phone
+notifications** on payday and before bills are due.
 
-It models the two simultaneous, decisive **Group H Matchday-3** fixtures of the
-2026 FIFA World Cup (26 June 2026):
+It's an **installable web app (PWA)**: add it to your home screen and it opens
+like a real app, works **offline**, and keeps **all your data privately on your
+phone** — nothing is uploaded anywhere, no account needed.
 
-- 🇺🇾 **Uruguay vs Spain** 🇪🇸 — Estadio Akron, Guadalajara
-- 🇨🇻 **Cape Verde vs Saudi Arabia** 🇸🇦 — NRG Stadium, Houston
+---
 
-![dashboard](docs/preview.png)
+## 📲 How to install on your phone
 
-## ⭐ The headline feature: a live match simulator
+1. Open the app's web address in your phone's browser (see **Hosting** below).
+2. **iPhone (Safari):** tap the **Share** button → **Add to Home Screen**.
+   **Android (Chrome):** tap the **⋮ menu** → **Install app / Add to Home Screen**.
+3. Open it from your home screen. Go to **⚙️ Setup** and tap a notification
+   switch to allow reminders.
 
-Each match has an animated, top-down **pitch** where the game plays out
-minute-by-minute, driven by the model:
+> 💡 Notifications and offline mode only work once it's **installed to the home
+> screen** — this is a browser requirement, not a limitation of the app.
 
-- ▶ **Kick off** samples a fresh scoreline from the model's probabilities and
-  plays it out live, with **1× / 2× / 4×** speed and **⏭ Skip to result**
-- Live **scoreboard + clock**, moving **ball** and both teams in **4-3-3**
-- **Goal celebrations** — screen flash, "GOAL!" burst and confetti
-- Live **stats** (possession, shots, on-target, xG, corners) that build in real time
-- A scrolling **commentary feed** using real squad names
+---
 
-![simulator](docs/simulator.png)
+## ✨ What it does
 
-## 🔴 Live data wiring
+- **Home** — your available money, **safe-to-spend this week**, savings-goal
+  progress, a timeline of this week's paydays / bills / payments, and a
+  **4-week outlook** projecting your balance forward.
+- **💵 Income** — your weekly paycheck plus any one-off money coming in
+  (refunds, side gigs, someone paying you back).
+- **🧾 Bills** — recurring bills (weekly, every 2 weeks, or monthly) with due
+  days and a total monthly cost.
+- **⚙️ Setup** — your balance, savings goal, amount to set aside each payday,
+  paycheck amount and payday, notification switches, and backup/restore.
 
-The dashboard loads instantly from a bundled real-world snapshot, then tries to
-**enrich itself with live data** in your browser — no server needed:
+### 🔔 Reminders
+- **Weekly summary** every payday — in / bills / safe-to-spend at a glance.
+- **Bill reminder** the day before a bill is due.
+- **Payday alert** when your paycheck lands.
 
-- **Live stats / form / recent results** → [TheSportsDB](https://www.thesportsdb.com)
-  (keyless, CORS-enabled). On load it resolves each national team, pulls their
-  last results, and updates the form pills + recent-results chips, tagging them
-  **LIVE**.
-- **Live bookmaker odds** → [The Odds API](https://the-odds-api.com) (optional).
-  Click **🔑 Odds API key**, paste a free key (stored only in your browser), and
-  the Value Detector compares the model against **real averaged H2H odds** instead
-  of a synthesised line.
+Reminders fire while the app is open, and — on supported phones (Android/Chrome
+installed PWAs) — in the background via periodic sync. A truly guaranteed
+"push even when closed" notification needs an always-on server; this app stays
+fully on-device by design.
 
-A status badge shows **🟢 LIVE data** / **🟡 Connecting…** / **⚪ Offline snapshot**,
-with an **⟳ Refresh** button and a "last updated" time. If any fetch fails
-(offline, rate-limited, or blocked), it silently falls back to the snapshot — so
-the file always works, even with no internet.
+---
 
-> Note: opening straight from `file://` works because both APIs send permissive
-> CORS headers. If your browser is strict about local files, serve the folder
-> with any static server (e.g. `python3 -m http.server`) and open `localhost`.
-
-## Built on real data (June 2026)
-
-| Team | FIFA rank | Elo | Group H |
-| --- | --- | --- | --- |
-| 🇪🇸 Spain | 3 | 2129 | 4 pts — beat Saudi 4-0, drew Cape Verde 0-0 |
-| 🇺🇾 Uruguay | 17 | 1890 | 2 pts — drew Saudi 1-1, drew Cape Verde 2-2 |
-| 🇨🇻 Cape Verde | 63 | 1625 | 2 pts — unbeaten, drew Spain & Uruguay |
-| 🇸🇦 Saudi Arabia | 59 | 1593 | 1 pt — must win |
-
-The model is **calibrated to the real market**: it reproduces the Opta
-supercomputer's Uruguay v Spain line (≈ Spain 67% / draw 21% / Uruguay 12%,
-vs Opta's 62 / 22 / 16) and the genuine coin-flip with a slight Cape Verde
-lean for the second game.
-
-## What each match shows
-
-- **Model verdict** + expected goals (xG) + most-likely scoreline
-- **1X2 probabilities** and fair decimal odds
-- **Scoreline probability heatmap** (every score 0-0 → 8-8)
-- **Team-strength radar**, **Poisson goal-distribution curves**
-- **Side markets** (BTTS, Over/Under 2.5) and a **value detector**
-- **Head-to-head history** and current **form / key players**
-
-Plus a **Group H standings** table with qualification scenarios.
-
-## How the model works
-
-1. **Goal expectancy** — real attack/defence strengths × tournament baseline → xG
-2. **Poisson scorelines** — xG → probability of every scoreline → 1X2/BTTS/totals
-3. **Elo tilt** — World-Football Elo nudges the goal means toward the stronger side
-4. **Monte-Carlo** — 20,000 simulated matches; analytic + simulated are averaged
-5. **Fair odds & value** — probabilities invert to odds, compared to a book line
-6. **Match simulator** — replays a sampled scoreline as a live, animated game
-
-## Files
+## 🧮 How "safe to spend" is worked out
 
 ```
-index.html        # everything — markup, styles, data, model, charts, simulator
-docs/             # preview screenshots
+safe to spend this week = current balance
+                        + money coming in this week (paycheck + payments)
+                        − bills due this week
+                        − amount you set aside for savings this week
 ```
 
-## Disclaimer
+The 4-week outlook rolls that forward week by week so you can see your balance
+trend before it happens.
 
-⚠️ **For entertainment and educational purposes only.** Figures are
-real-world-based estimates compiled for modelling, not a live feed, and the
-simulator is a probabilistic illustration — not a guaranteed outcome. This is a
-statistical model, not betting advice. If you choose to gamble, do so
-responsibly. **18+ · BeGambleAware.org**
+---
+
+## 🗂 What's in here
+
+| File | Purpose |
+|------|---------|
+| `index.html` | App shell, layout and styling |
+| `engine.js` | Shared budget logic (dates, bills, paydays) — used everywhere |
+| `app.js` | Front-end logic — storage, notifications, push registration |
+| `sw.js` | Service worker — offline cache + push handler |
+| `notify/` | **Free GitHub Actions push** — config, registered phones, send/register scripts |
+| `.github/workflows/` | The scheduled + registration Actions |
+| `server.js`, `Dockerfile`, `fly.toml` | Optional always-on server (Fly.io) — an alternative to Actions |
+| `icon-192.png`, `icon-512.png` | App icons |
+| `test/` | Unit tests (`npm test`) |
+
+## 🌐 How notifications work (free, no server)
+
+The app is hosted free on **GitHub Pages**. A **GitHub Action** runs once a day
+(also free) and sends a push to your phone **on your payday** and **the day
+before a bill**. It only knows *timing* — which weekday you're paid and which
+day bills fall — never your balances or amounts. Those stay on your phone.
+
+```
+GitHub Pages  ──serves──▶  the app on your iPhone
+                               │ (register once)
+                               ▼
+notify/devices.json  ◀──filed by──  register Action
+        │
+        ▼
+notify.yml (daily cron)  ──web-push──▶  🔔 your iPhone
+```
+
+---
+
+## 🍏 Get it on your iPhone — full walkthrough
+
+Do steps 1–3 once on a computer, then 4–5 on your iPhone.
+
+**1. Turn on GitHub Pages (free hosting)**
+   - Repo → **Settings → Pages**.
+   - Under *Build and deployment*, **Source: Deploy from a branch**.
+   - Branch: **`claude/budget-tracking-app-lend88`**, folder **`/ (root)`** → **Save**.
+   - Wait ~1 minute. Your app URL will be:
+     **`https://awojtowicz590-create.github.io/My-project-/`**
+   - *(GitHub Pages is free for **public** repos. Your money amounts never leave
+     your phone, so a public repo is fine — only timing lives in the repo.)*
+
+**2. Add the notification key (one secret)**
+   - Repo → **Settings → Secrets and variables → Actions → New repository secret**.
+   - Name: **`VAPID_PRIVATE_KEY`**  ·  Value: *(the private key given to you)*.
+   - *(The matching public key is already in `notify/config.json`.)*
+
+**3. Set the send time (optional)**
+   - Edit `.github/workflows/notify.yml`, line `cron: '0 13 * * *'`.
+   - It's in UTC. `13` = 8am US-Eastern. Use [crontab.guru](https://crontab.guru)
+     to pick ~8am in your timezone.
+
+**4. Install the app on your iPhone**
+   - Open the Pages URL from step 1 in **Safari** (must be Safari on iOS).
+   - Tap the **Share** button → **Add to Home Screen** → **Add**.
+   - Open **Weekly Budget** from your home screen (this is required for iOS push).
+
+**5. Register your phone for alerts**
+   - In the app go to **⚙️ Setup**, fill in your money/paycheck, add your bills.
+   - Flip on **Weekly summary** (and Bill reminders / Payday alert). Allow
+     notifications when iOS asks.
+   - Tap **📲 Register this phone** → it opens GitHub → tap **Submit new issue**.
+     A bot files your phone and closes the issue automatically. Done! 🎉
+
+**Test it right away:** Repo → **Actions → “Send budget notifications” → Run
+workflow** → tick **test** → **Run**. You should get a test push within a minute.
+
+> Re-tap **Register this phone** whenever you change your payday or bills, so the
+> Action has the latest timing. Changing balances/amounts needs no re-register.
+>
+> Heads-up: GitHub may delay a scheduled run by a few minutes, and it pauses
+> scheduled Actions after 60 days of no repo activity (just visit the repo to
+> keep it alive).
+
+---
+
+## 🛠️ Local development
+
+```bash
+npm install
+npm test                     # run all unit tests
+npm run keys                 # generate a fresh VAPID key pair if you want your own
+python3 -m http.server 8000  # then open http://localhost:8000  (on-device mode)
+```
+
+<details>
+<summary>Alternative: always-on server on Fly.io (~$2–4/mo)</summary>
+
+Prefer instant sync and no per-change re-registration? Run `server.js` on Fly.io
+instead of using Actions:
+
+```bash
+curl -L https://fly.io/install.sh | sh
+fly auth signup
+fly launch --no-deploy --copy-config --name YOUR-UNIQUE-NAME   # say NO to databases
+fly volumes create wb_data --size 1 --region iad
+fly deploy
+```
+
+`fly deploy` prints a `https://…fly.dev` URL. Open it on your phone and Add to
+Home Screen — the app auto-detects the server and enables closed-app push with
+no manual registration. The server generates its own keys on first boot.
+</details>
+
+## 🔒 Privacy & backups
+
+All data lives in your browser's local storage on your device. **Setup → Export
+backup** saves a JSON file; **Import backup** restores it (useful when moving to
+a new phone). **Erase all data** wipes everything on the device.
+
+**When using the push server:** to send reminders while the app is closed, the
+server has to know *when* things happen, so it stores the minimum needed — an
+anonymous random device ID, your push subscription, and your schedule (paydays,
+bills, amounts). No name, email, or login. It's tied only to the random ID.
+**Erase all data** also tells the server to delete your record, and an unused
+subscription is dropped automatically once your browser expires it.
