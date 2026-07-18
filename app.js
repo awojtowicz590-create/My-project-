@@ -243,6 +243,8 @@ function updateNotifState(){
     p!=='granted'? 'Turn on a switch above and allow notifications when asked.' :
     (serverMode && anyOn)? '✓ Push is on — you\'ll get alerts even when the app is closed.' :
     serverMode? '✓ Connected to your push server. Turn on a switch to get closed-app alerts.' :
+    (actionsMode && anyOn)? '📲 Almost there — tap “Register this phone” to get alerts when the app is closed.' :
+    actionsMode? '✓ Ready for free scheduled alerts. Turn on a switch, then register this phone.' :
     '✓ Notifications on for this device (reminders show while the app is open).';
 }
 async function ensurePerm(){
@@ -257,7 +259,18 @@ async function toggleNotif(kind){
   state.notif[kind]=turningOn; save();
   document.getElementById('tog_'+kind).classList.toggle('on',state.notif[kind]);
   if(turningOn){ toast('On ✓'); if(serverMode) await enablePush(); }
-  scheduleReminders(); updateNotifState();
+  scheduleReminders(); updateNotifState(); refreshPushUI();
+}
+
+/* Show the right push controls for the detected backend. */
+function refreshPushUI(){
+  const reg=document.getElementById('registerBtn');
+  const hint=document.getElementById('registerHint');
+  if(!reg) return;
+  const anyOn = state.notif.weekly||state.notif.bills||state.notif.pay;
+  const show = actionsMode && anyOn;
+  reg.style.display = show ? 'block' : 'none';
+  hint.style.display = show ? 'block' : 'none';
 }
 document.getElementById('bellBtn').onclick=async()=>{ if(await ensurePerm()){ toast('Notifications enabled'); document.querySelector('[data-tab=setup]').click(); } updateNotifState(); };
 
@@ -328,9 +341,12 @@ let toastT; function toast(m){ const t=document.getElementById('toast'); t.textC
    /api/vapid). On GitHub Pages / file:// it silently no-ops and the app falls
    back to on-device reminders.
    ========================================================================= */
-let serverMode = false;          // true once we've confirmed a push server
+let serverMode = false;          // live push server (Fly.io) — auto-syncs
+let actionsMode = false;         // GitHub Actions push — register once via issue
+let pushConfig = null;           // notify/config.json (Actions mode)
 let vapidPublicKey = null;
 const deviceId = (()=>{ let d=localStorage.getItem('wb.device'); if(!d){ d='dev_'+uid()+uid(); localStorage.setItem('wb.device',d); } return d; })();
+const pushMode = () => serverMode || actionsMode;
 
 function b64ToUint8(base64){
   const pad='='.repeat((4-base64.length%4)%4);
@@ -338,25 +354,62 @@ function b64ToUint8(base64){
   const raw=atob(s); return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
 }
 
+/* Figure out which push backend is available:
+   - a live server exposes /api/vapid  → serverMode (auto-sync)
+   - GitHub Pages ships notify/config.json → actionsMode (register once)
+   - neither → on-device reminders only */
 async function detectServer(){
   try{
     const r=await fetch('api/vapid',{cache:'no-store'});
-    if(!r.ok) return;
-    const j=await r.json();
-    if(j&&j.publicKey){ vapidPublicKey=j.publicKey; serverMode=true; }
-  }catch(e){ /* no server — on-device only */ }
+    if(r.ok){ const j=await r.json(); if(j&&j.publicKey){ vapidPublicKey=j.publicKey; serverMode=true; return; } }
+  }catch(e){}
+  try{
+    const r=await fetch('notify/config.json',{cache:'no-store'});
+    if(r.ok){ const j=await r.json(); if(j&&j.vapidPublicKey){ vapidPublicKey=j.vapidPublicKey; pushConfig=j; actionsMode=true; } }
+  }catch(e){ /* on-device only */ }
+}
+
+/* Subscribe this browser to push using the shared public key. */
+async function subscribePush(){
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToUint8(vapidPublicKey)});
+  localStorage.setItem('wb.sub', JSON.stringify(sub));
+  return sub;
+}
+
+/* Build the minimal, timing-only registration for GitHub Actions.
+   NOTE: no balances or amounts — only which weekday you're paid and which day
+   bills fall, plus the push subscription. */
+function deviceRegistration(sub){
+  return {
+    id: deviceId,
+    tz: (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
+    payday: state.payday,
+    notif: state.notif,
+    bills: (state.bills||[]).map(b=>({ name:b.name, freq:b.freq, day:b.day })),
+    subscription: sub || JSON.parse(localStorage.getItem('wb.sub')||'null')
+  };
+}
+
+/* Open a pre-filled GitHub issue so the Action can file this phone. */
+async function registerPhone(){
+  if(!actionsMode) return;
+  if(!await ensurePerm()){ updateNotifState(); return; }
+  let sub;
+  try{ sub=await subscribePush(); }
+  catch(e){ toast('Couldn\'t subscribe — is this installed to your Home Screen?'); return; }
+  const reg=deviceRegistration(sub);
+  const body='This registers my phone for budget alerts. Just tap **Submit new issue** — a bot files it and closes this.\n\n```json\n'+JSON.stringify(reg,null,2)+'\n```';
+  const url=`https://github.com/${pushConfig.repo}/issues/new?title=`+encodeURIComponent('device-registration')+'&body='+encodeURIComponent(body);
+  window.open(url,'_blank');
+  toast('Opening GitHub — tap Submit to finish');
 }
 
 async function enablePush(){
   if(!serverMode||!('serviceWorker' in navigator)||!('PushManager' in window)) return false;
-  try{
-    const reg=await navigator.serviceWorker.ready;
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64ToUint8(vapidPublicKey)});
-    localStorage.setItem('wb.sub',JSON.stringify(sub));
-    await syncServer(sub);
-    return true;
-  }catch(e){ return false; }
+  try{ const sub=await subscribePush(); await syncServer(sub); return true; }
+  catch(e){ return false; }
 }
 
 let syncT;
@@ -392,11 +445,12 @@ if('serviceWorker' in navigator){
 render();
 scheduleReminders();
 detectServer().then(async()=>{
-  updateNotifState();
-  // If push was already granted + a notification type is on, (re)subscribe & sync.
-  if(serverMode && 'Notification' in window && Notification.permission==='granted'
-     && (state.notif.weekly||state.notif.bills||state.notif.pay)){
-    await enablePush();
+  updateNotifState(); refreshPushUI();
+  const granted = 'Notification' in window && Notification.permission==='granted';
+  const anyOn = state.notif.weekly||state.notif.bills||state.notif.pay;
+  if(granted && anyOn){
+    if(serverMode) await enablePush();
+    else if(actionsMode){ try{ await subscribePush(); }catch(e){} }  // keep subscription fresh
   }
   pushSummaryToSW();
 });

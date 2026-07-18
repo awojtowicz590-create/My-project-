@@ -67,73 +67,108 @@ trend before it happens.
 | File | Purpose |
 |------|---------|
 | `index.html` | App shell, layout and styling |
-| `engine.js` | Shared budget logic (dates, bills, paydays) — used by app **and** server |
-| `app.js` | Front-end logic — storage, notifications, push subscription |
+| `engine.js` | Shared budget logic (dates, bills, paydays) — used everywhere |
+| `app.js` | Front-end logic — storage, notifications, push registration |
 | `sw.js` | Service worker — offline cache + push handler |
-| `server.js` | Push server — serves the app, stores subscriptions, sends pushes |
-| `manifest.webmanifest` | Makes it installable to the home screen |
+| `notify/` | **Free GitHub Actions push** — config, registered phones, send/register scripts |
+| `.github/workflows/` | The scheduled + registration Actions |
+| `server.js`, `Dockerfile`, `fly.toml` | Optional always-on server (Fly.io) — an alternative to Actions |
 | `icon-192.png`, `icon-512.png` | App icons |
-| `Dockerfile`, `fly.toml` | Deploy config for Fly.io |
-| `test/` | Scheduler + engine unit tests (`npm test`) |
+| `test/` | Unit tests (`npm test`) |
 
-## 🌐 Two ways to run it
+## 🌐 How notifications work (free, no server)
 
-**1. Static only (free, on-device reminders):** it's just static files, so
-**GitHub Pages** / Netlify / Vercel / Cloudflare Pages all work. Reminders fire
-while the app is open. No server, no cost.
+The app is hosted free on **GitHub Pages**. A **GitHub Action** runs once a day
+(also free) and sends a push to your phone **on your payday** and **the day
+before a bill**. It only knows *timing* — which weekday you're paid and which
+day bills fall — never your balances or amounts. Those stay on your phone.
 
-**2. With push server (reminders even when the app is closed):** run `server.js`
-somewhere always-on. It serves the app *and* sends push notifications on
-schedule. See below.
+```
+GitHub Pages  ──serves──▶  the app on your iPhone
+                               │ (register once)
+                               ▼
+notify/devices.json  ◀──filed by──  register Action
+        │
+        ▼
+notify.yml (daily cron)  ──web-push──▶  🔔 your iPhone
+```
 
 ---
 
-## 🚀 Deploy the push server to Fly.io
+## 🍏 Get it on your iPhone — full walkthrough
 
-The push server has to stay awake so it can send notifications on time. Fly.io
-runs one tiny always-on machine for roughly **$2–4/month** (a card is required;
-web-push itself is free).
+Do steps 1–3 once on a computer, then 4–5 on your iPhone.
 
-**One-time setup**
+**1. Turn on GitHub Pages (free hosting)**
+   - Repo → **Settings → Pages**.
+   - Under *Build and deployment*, **Source: Deploy from a branch**.
+   - Branch: **`claude/budget-tracking-app-lend88`**, folder **`/ (root)`** → **Save**.
+   - Wait ~1 minute. Your app URL will be:
+     **`https://awojtowicz590-create.github.io/My-project-/`**
+   - *(GitHub Pages is free for **public** repos. Your money amounts never leave
+     your phone, so a public repo is fine — only timing lives in the repo.)*
 
-```bash
-# 1. Install the Fly CLI  (https://fly.io/docs/flyctl/install/)
-curl -L https://fly.io/install.sh | sh
+**2. Add the notification key (one secret)**
+   - Repo → **Settings → Secrets and variables → Actions → New repository secret**.
+   - Name: **`VAPID_PRIVATE_KEY`**  ·  Value: *(the private key given to you)*.
+   - *(The matching public key is already in `notify/config.json`.)*
 
-# 2. Sign in / sign up
-fly auth signup      # or: fly auth login
+**3. Set the send time (optional)**
+   - Edit `.github/workflows/notify.yml`, line `cron: '0 13 * * *'`.
+   - It's in UTC. `13` = 8am US-Eastern. Use [crontab.guru](https://crontab.guru)
+     to pick ~8am in your timezone.
 
-# 3. From this folder, pick a unique app name and create it
-fly launch --no-deploy --copy-config --name YOUR-UNIQUE-NAME
-#    - Say NO to Postgres/Redis/other databases (not needed)
-#    - It reuses the included fly.toml
+**4. Install the app on your iPhone**
+   - Open the Pages URL from step 1 in **Safari** (must be Safari on iOS).
+   - Tap the **Share** button → **Add to Home Screen** → **Add**.
+   - Open **Weekly Budget** from your home screen (this is required for iOS push).
 
-# 4. Create the little disk that stores subscriptions + keys
-fly volumes create wb_data --size 1 --region iad   # match primary_region in fly.toml
+**5. Register your phone for alerts**
+   - In the app go to **⚙️ Setup**, fill in your money/paycheck, add your bills.
+   - Flip on **Weekly summary** (and Bill reminders / Payday alert). Allow
+     notifications when iOS asks.
+   - Tap **📲 Register this phone** → it opens GitHub → tap **Submit new issue**.
+     A bot files your phone and closes the issue automatically. Done! 🎉
 
-# 5. (optional) set a contact email used in push headers
-fly secrets set CONTACT_EMAIL="mailto:you@example.com"
+**Test it right away:** Repo → **Actions → “Send budget notifications” → Run
+workflow** → tick **test** → **Run**. You should get a test push within a minute.
 
-# 6. Ship it 🚀
-fly deploy
-```
+> Re-tap **Register this phone** whenever you change your payday or bills, so the
+> Action has the latest timing. Changing balances/amounts needs no re-register.
+>
+> Heads-up: GitHub may delay a scheduled run by a few minutes, and it pauses
+> scheduled Actions after 60 days of no repo activity (just visit the repo to
+> keep it alive).
 
-`fly deploy` prints your live URL, e.g. `https://YOUR-UNIQUE-NAME.fly.dev`.
-Open **that URL** on your phone and **Add to Home Screen** — because the app is
-now served by its own server, the notification switches automatically turn on
-**closed-app push**. (Update `app` and `primary_region` in `fly.toml` first if
-you want a different name/region.)
+---
 
-> The server auto-generates its VAPID keys on first boot and stores them on the
-> volume — there are no keys to copy or configure.
-
-**Run it locally to try it**
+## 🛠️ Local development
 
 ```bash
 npm install
-npm start          # http://localhost:8080
-npm test           # run the scheduler/engine tests
+npm test                     # run all unit tests
+npm run keys                 # generate a fresh VAPID key pair if you want your own
+python3 -m http.server 8000  # then open http://localhost:8000  (on-device mode)
 ```
+
+<details>
+<summary>Alternative: always-on server on Fly.io (~$2–4/mo)</summary>
+
+Prefer instant sync and no per-change re-registration? Run `server.js` on Fly.io
+instead of using Actions:
+
+```bash
+curl -L https://fly.io/install.sh | sh
+fly auth signup
+fly launch --no-deploy --copy-config --name YOUR-UNIQUE-NAME   # say NO to databases
+fly volumes create wb_data --size 1 --region iad
+fly deploy
+```
+
+`fly deploy` prints a `https://…fly.dev` URL. Open it on your phone and Add to
+Home Screen — the app auto-detects the server and enables closed-app push with
+no manual registration. The server generates its own keys on first boot.
+</details>
 
 ## 🔒 Privacy & backups
 

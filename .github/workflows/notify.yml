@@ -1,0 +1,42 @@
+name: Send budget notifications
+
+# Runs once a day. On your payday it pings your phone; the day before a bill
+# it reminds you. Adjust the time below to ~8am in YOUR timezone.
+# (Cron is in UTC. 13:00 UTC ≈ 8am US-Eastern / 9am UK. https://crontab.guru)
+on:
+  schedule:
+    - cron: '0 13 * * *'
+  workflow_dispatch:        # lets you run it manually to test
+    inputs:
+      test:
+        description: 'Send a test push to every registered phone now (ignores schedule)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write           # so it can prune expired subscriptions
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+      SEND_TEST: ${{ inputs.test }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install web-push --no-save
+      - run: node notify/send.js
+      - name: Commit pruned subscriptions (if any)
+        run: |
+          if ! git diff --quiet notify/devices.json; then
+            git config user.name  "budget-bot"
+            git config user.email "budget-bot@users.noreply.github.com"
+            git add notify/devices.json
+            git commit -m "Prune expired push subscriptions"
+            git push
+          fi

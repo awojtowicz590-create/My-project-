@@ -1,0 +1,41 @@
+name: Register a phone
+
+# When the app opens a pre-filled "device-registration" issue, this files the
+# phone into notify/devices.json automatically and closes the issue.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  register:
+    if: contains(github.event.issue.title, 'device-registration')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add device to devices.json
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: node notify/register.js
+      - name: Commit the registration
+        run: |
+          if ! git diff --quiet notify/devices.json; then
+            git config user.name  "budget-bot"
+            git config user.email "budget-bot@users.noreply.github.com"
+            git add notify/devices.json
+            git commit -m "Register phone (#${{ github.event.issue.number }})"
+            git push
+          fi
+      - name: Close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue close ${{ github.event.issue.number }} \
+            --repo "${{ github.repository }}" \
+            --comment "✅ Your phone is registered. You'll get a ping on payday and before bills are due. You can delete this issue."

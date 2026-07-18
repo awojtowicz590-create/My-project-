@@ -226,6 +226,8 @@
       <div class="switch"><div><b>Weekly summary</b><div class="muted small">Every payday, a rundown of the week</div></div><div class="tog" id="tog_weekly" onclick="toggleNotif('weekly')"><i></i></div></div>
       <div class="switch"><div><b>Bill reminders</b><div class="muted small">Heads-up the day before a bill is due</div></div><div class="tog" id="tog_bills" onclick="toggleNotif('bills')"><i></i></div></div>
       <div class="switch"><div><b>Payday alert</b><div class="muted small">A ping when your paycheck lands</div></div><div class="tog" id="tog_pay" onclick="toggleNotif('pay')"><i></i></div></div>
+      <button class="btn primary" id="registerBtn" style="margin-top:16px;display:none" onclick="registerPhone()">📲 Register this phone</button>
+      <div class="muted small" id="registerHint" style="margin-top:8px;display:none">Opens GitHub once to link this phone. Tap <b>Submit</b> there and you're set. Re-register if you change your payday or bills.</div>
       <button class="btn ghost mini" style="margin-top:14px" onclick="testNotif()">Send a test notification</button>
       <div class="muted small" id="notifState" style="margin-top:10px"></div>
     </div>
